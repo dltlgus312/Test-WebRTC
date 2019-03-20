@@ -3,4 +3,4 @@
 WebRtc P2P 연결시 STUN ( NAT 공인 IP, PORT를 얻어내는 기술 ), TURN ( P2P 연결이 안되는 환경일때 트래픽을 중계하는.. ) 을 활용하는 
 ICE ( STUN, TURN 등의 기술을 종합 활용하여 라우팅 경로를 찾아내는 기술 ) 기술이 필요하다. - UDP
 
-getMedia 의 리턴 타입은 Promise 다.
+getMedia 의 리턴 타입은 Promise 이다.
