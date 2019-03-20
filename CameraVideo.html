@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+</head>
+<body>
+<script>
+	function hasGetUserMedia() {
+		  return !!(navigator.getUserMedia || navigator.webkitGetUserMedia ||
+            	navigator.mozGetUserMedia || navigator.msGetUserMedia);
+	}
+	
+	if (hasGetUserMedia()) {
+	  alert('WebRTC Access');
+	} else {
+	  alert('getUserMedia() is not supported in your browser');
+	}
+</script>
+
+<video autoplay id='video'></video>
+
+<script>
+  var errorCallback = function(e) {
+    alert("please your computer installation cam");
+    console.log('Reeeejected!', e);
+  };
+
+navigator.getUserMedia  = navigator.getUserMedia ||
+                          navigator.webkitGetUserMedia ||
+                          navigator.mozGetUserMedia ||
+                          navigator.msGetUserMedia;
+
+var video = document.querySelector('video');
+
+if (navigator.getUserMedia) {
+  navigator.getUserMedia({audio: true, video: true}, function(stream) {
+    video.srcObject = stream;
+  }, errorCallback);
+} else {
+  video.src = 'somevideo.webm'; // fallback.
+}
+   
+</script>
+</body>
+</html>

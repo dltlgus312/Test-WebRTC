@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+
+<video autoplay id='video'></video>
+
+
+
+<script>	
+
+	var video = document.querySelector("#video");
+
+	if(navigator.getDisplayMedia){
+		navigator.getDisplayMedia().then((data) => {
+			video.srcObject = data;
+		});
+	} else if  (navigator.mediaDevices.getDisplayMedia){
+		navigator.mediaDevices.getDisplayMedia().then((data) => {
+			video.srcObject = data;
+		});
+	}
+
+</script>
+
+</body>
+</html>

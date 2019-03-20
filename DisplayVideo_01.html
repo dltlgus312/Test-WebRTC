@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+
+<video autoplay id='video'></video>
+
+
+
+<script>
+	// 브라우저에 맞는 디스플레이 얻어오기
+	function getDisplay(){
+		const constraints = {
+			video: {
+				width: 1980,
+				height: 1080,
+				frameRate: 10
+			}
+		}		
+
+		if(navigator.getDisplayMedia){
+			return navigator.getDisplayMedia(constraints);
+		} else if  (navigator.mediaDevices.getDisplayMedia){
+			return navigator.mediaDevices.getDisplayMedia(constraints);
+		}
+	}
+
+
+	function start(callback){
+		getDisplay().then((media) => {
+			callback(media);
+		}, (error) => {
+			alert("getDisplay Fail");
+		});
+	}
+
+
+	function onStream(stream){
+		var video = document.querySelector('#video');
+		video.srcObject = stream;
+	}
+
+ 	
+	function startScreenShare(){
+		start((stream) => {
+			onStream(stream);
+		})
+	}
+
+	startScreenShare();
+   
+</script>
+
+</body>
+</html>
