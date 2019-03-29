@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="https://rtcmulticonnection.herokuapp.com/dist/RTCMultiConnection.min.js"></script>
+<script src="https://rtcmulticonnection.herokuapp.com/socket.io/socket.io.js"></script>
+
+</head>
+<body>
+
+<button id="btn-open-room">Open Room</button>
+<button id="btn-join-room">Join Room</button><hr>
+
+	<script>
+	var connection = new RTCMultiConnection();
+
+	// this line is VERY_important
+	connection.socketURL = '/';
+	
+	
+	connection.onstream = function(event) {
+		document.body.appendChild( event.mediaElement );
+	};
+	
+	connection.session = {
+
+		video: true
+	};
+
+	connection.sdpConstraints.mandatory = {
+
+		OfferToReceiveVideo: true
+	};
+	
+	var predefinedRoomId = 'aaa';
+
+	document.getElementById('btn-open-room').onclick = function() {
+		connection.open( predefinedRoomId );
+	};
+
+	document.getElementById('btn-join-room').onclick = function() {
+		connection.join( predefinedRoomId );
+	};
+</script>
+</body>
+</html>
