@@ -1,30 +1,35 @@
 var fs = require('fs');
+var app = require( 'express' )( );
+var https = require('https');
+var io = require( 'socket.io' );
+var RTCMultiConnectionServer = require('rtcmulticonnection-server');
 
-const options = {
+var options = {
   pfx: fs.readFileSync('./keys/server.pfx'),
   passphrase: 'root'
 };
 
-var app = require( 'express' )(  );
-var https = require('https').Server( options, app );
-var io = require( 'socket.io' )( https );
-const RTCMultiConnectionServer = require('rtcmulticonnection-server');
-
-
+// HTTPS SERVER OPEN
+https = https.Server( options, app );
 https.listen(443, ( ) => {
 	console.log("https open");
 });
 
-// URL 포워딩
-app.get('/', ( req, res ) => {
-	res.sendfile( 'client.html' );
+
+// URL FORWORDING
+app.get('/video', ( req, res ) => {
+	res.sendfile( 'video.html' );
+});
+
+app.get('/file', ( req, res ) => {
+	res.sendfile( 'file.html' );
 });
 
 
 
-// Socket io 
+// Socket IO SETTING ( Default URL = 'https://localhost/socket.io' )
+io = io(https);
 io.on( 'connection', ( socket ) => {
-		console.log('connection');
+		console.log(socket);
 		RTCMultiConnectionServer.addSocket(socket);
-		
 });

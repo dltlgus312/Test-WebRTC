@@ -33,7 +33,7 @@ navigator.getUserMedia  = navigator.getUserMedia ||
 var video = document.querySelector('video');
 
 if (navigator.getUserMedia) {
-  navigator.getUserMedia({audio: true, video: true}, function(stream) {
+  navigator.getUserMedia({audio: false, video: true}, function(stream) {
     video.srcObject = stream;
   }, errorCallback);
 } else {
