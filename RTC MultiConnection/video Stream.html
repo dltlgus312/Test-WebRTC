@@ -23,10 +23,12 @@
 	// CREATE STREAM
 	function myStream(mediaStream){
 		var video = document.createElement('video');
-				video.muted = true;
-				video.srcObject = mediaStream;
-				document.body.appendChild( video );
-				video.play();
+		
+		// 내 목소리는 안들리게 설정
+		video.muted = true;
+		video.srcObject = mediaStream;
+		document.body.appendChild( video );
+		video.play();
 	}
 	
 	
