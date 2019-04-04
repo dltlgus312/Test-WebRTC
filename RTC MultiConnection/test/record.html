@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="./node_modules/jquery/dist/jquery.min.js"> </script>
+<script src="./node_modules/msr/MediaStreamRecorder.js"> </script>
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+	var mediaRecorder;
+	var lastData = false;
+	var socket = io();
+	
+	function onMediaSuccess(stream) {
+	
+		socket.emit('uploadStart',{});
+	
+		mediaRecorder = new MediaStreamRecorder(stream);
+		mediaRecorder.mimeType = 'video/webm';
+	
+		mediaRecorder.onstop = function(){
+
+		}
+		
+		mediaRecorder.ondataavailable = function (blob) {
+			<!-- // POST/PUT "Blob" using FormData/XHR2 -->
+			socket.emit('uploadFile', {lastData:lastData, data:blob});
+			if(lastData){
+				alert("on stop");			
+			}
+		};
+		<!-- mediaRecorder.start(30 * 1000); -->
+		mediaRecorder.start(5000);
+		
+	}
+
+
+
+	// CREATE STREAM
+	function myStream(mediaStream){
+		var video = document.createElement('video');
+		video.muted = true; // 내 목소리 안들리기
+		video.srcObject = mediaStream;
+		document.body.appendChild( video );
+		video.play();
+		
+		
+		
+		onMediaSuccess(mediaStream);
+	}
+
+
+	function beforeOpenOrJoin(callback) {
+		var videoConstraints = {
+			deviceId: window.deviceId ? { exact: window.deviceId } : null,
+			width: 1920,
+			height: 1080
+		};
+		navigator.mediaDevices.getUserMedia({
+				video: videoConstraints
+				<!-- , audio:true -->
+		}).then(async mediaStream => {
+				myStream(mediaStream);
+				<!-- connection.attachStreams = [mediaStream]; -->
+				
+				callback();
+			});
+	}
+</script>
+
+</head>
+<body>
+	<input type="text" id="room-id" value="abcdef">
+
+	<button id="Start">Start</button>
+	<button id="End">End</button>
+	<div id="videos-container"></div>
+
+
+
+	<script>
+	
+		<!-- window.onunload = function(){ -->
+			<!-- alert("close"); -->
+			<!-- lastData = true; -->
+			<!-- mediaRecorder.stop(); -->
+		<!-- } -->
+		
+		$(window).on( "beforeunload", function(){
+			return "이 페이지를 벗어나면 작성된 내용은 저장되지 않습니다.";
+		});
+		
+		<!-- document.onkeydown = function ( event ) { -->
+			<!-- if ( event.keyCode == 116 || event.ctrlKey == true && (event.keyCode == 82)) { -->
+				<!-- alert("reload..."); -->
+				<!-- lastData = true; -->
+				<!-- mediaRecorder.stop(); -->
+				<!-- return true; -->
+			<!-- } -->
+		<!-- } -->
+	
+		document.getElementById('Start').onclick = function() {
+			beforeOpenOrJoin(function() {
+			});
+		};
+		document.getElementById('End').onclick = function() {
+			lastData = true;
+			mediaRecorder.stop();
+		};
+	</script>
+
+
+
+</body>
+
+</html>

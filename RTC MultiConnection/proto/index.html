@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<script src="./node_modules/jquery/dist/jquery.min.js"> </script>
+<script src="./node_modules/msr/MediaStreamRecorder.js"> </script>
+<script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
+<script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+
+
+<style>
+	html { height: 100%;}
+	
+	* { padding: 0; margin: 0; }
+	html, body {min-height: 100% !important; height: 100% !important;}
+	
+	
+	#widget-container {width:60%;height:100%;float:left;}
+	#url-container {width:10%;height:100%;float:left;overflow:auto;background-color:#a0a0f0;text-align:center;}
+	#video-container {width:30%;height:90%;float:right;background-color:#8f8f8f;}
+	#screen-container {width:100%;height:30%;background-color:#f0f0f0;text-align:center;}
+	#button-container {width:30%;height10%;float:right;}
+	
+	#video-container > video {width:100%; height:32%;margin:10px;}
+	#screen-container > video {width:100%; height:100%;}
+</style>
+
+
+</head>
+<body>
+
+	
+	<div id="widget-container"></div>
+	
+	<div id="url-container"></div>
+	
+	<div id="video-container">
+		<div id="screen-container">
+			<h1 style="padding-top:10%">THIS SCREEN VIDEO AREA</h1>
+		</div>
+	</div>
+
+
+	<div id="button-container">
+		<button id="screenShare">Screen Share</button>
+	</div>
+
+
+
+	<script>
+		var myVideo, permission, mediaRecorder;
+		
+		var connection = new RTCMultiConnection();
+		
+		connection.socketURL = '/';
+		
+		connection.dontCaptureUserMedia = true;
+		
+		connection.maxParticipantsAllowed = 2;
+		
+		connection.session = {
+			audio: true,
+			video: true,
+			data: true
+		};
+		
+		
+		connection.onRoomFull = function(err) {
+			alert('방이 꽉 찼습니다. \n ERROR : ' + err);
+		};
+		
+		
+		// 브라우저 닫기 이벤트
+		connection.onbeforeunload = function() {
+			mediaRecorder.stop();
+			
+			
+			alert("파일 업로드를 기다려 주세요");
+			
+			
+			
+			connection.peers.getAllParticipants().forEach(function(participant) {
+				mPeer.onNegotiationNeeded({
+					userLeft: true
+				}, participant);
+
+				if (connection.peers[participant] && connection.peers[participant].peer) {
+					connection.peers[participant].peer.close();
+				}
+
+				delete connection.peers[participant];
+			});
+
+			connection.attachStreams.forEach(function(stream) {
+				stream.stop();
+			});
+
+			connection.closeSocket();
+			connection.isInitiator = false;
+		};
+		
+		
+		
+		connection.onstream = function(event) {
+			var container;
+			
+			if(connection.isInitiator && !mediaRecorder){
+				alert("당신은 방의 주인입니다.");
+				permission = 'super';
+				document.getElementById("screenShare").disabled = false;
+			}else {				
+				permission = 'user';
+				document.getElementById("screenShare").disabled = true;
+			}
+		
+			if(event.stream.isScreen){
+				document.getElementById("screenShare").disabled = true;
+				container = document.getElementById('screen-container');
+				container.innerHTML  = "";
+			}else {			
+				container = document.getElementById('video-container');
+			}
+			
+			event.mediaElement.status = 'play';
+			event.mediaElement.controls = false;
+			container.appendChild( event.mediaElement );
+			event.mediaElement.play();
+			
+			if(permission == 'super'){
+				document.getElementById(event.mediaElement.id).onclick = function(){
+						if(event.mediaElement.status === 'play'){
+							event.mediaElement.status = 'stop';
+							connection.send({streamClose : true, id : event.mediaElement.id});
+						}
+						else {
+							event.mediaElement.status = 'play';
+							connection.send({streamOpen : true, id : event.mediaElement.id});
+						}
+				}
+				
+				if(!mediaRecorder){
+					alert("방의 주인은 반드시 녹화를 해주시기 바랍니다.");
+					recorde();
+				}
+			}				
+		};
+		
+		
+		function recorde(){
+			var displayStream; 
+			navigator.mediaDevices.getDisplayMedia({video:true})
+			.then((stream)=>{
+				displayStream = stream;
+				connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) {
+					displayStream.addTrack(videoStream.stream.getAudioTracks()[0]);
+					recording(displayStream);
+				});
+			
+			})
+			.catch((err)=>{
+				if(err instanceof TypeError){
+					alert('에러 : ' + err);
+					recording(displayStream);
+				}else {
+					alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err);
+					recorde();
+				}
+				
+				<!-- if(err.constructor === NotAllowedError) -->
+			});
+		
+			
+		}
+		
+		
+		function recording(stream){
+		
+			mediaRecorder = new MediaStreamRecorder(stream);
+			mediaRecorder.mimeType = 'video/mp4;codecs=h264';
+			
+			mediaRecorder.ondataavailable = function (data) {
+				connection.socket.emit('uploadFile', {data:data});
+			};
+			
+			mediaRecorder.start(10 * 1000);
+		}
+		
+	
+		function myStream(mediaStream, type){
+			myVideo = document.createElement('video');
+			myVideo.muted = true;
+			myVideo.srcObject = mediaStream;
+			myVideo.id = mediaStream.id;
+			myVideo.status = 'play';
+			
+			var container;
+			if(type){
+				container = document.getElementById('screen-container');
+				container.innerHTML  = "";
+			}else {
+				container = document.getElementById('video-container');
+			}
+			container.appendChild( myVideo );
+			myVideo.play();
+			
+			myVideo.onclick = function(){
+				if(this.status === 'play'){
+					this.status = 'stop';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = false;
+				}
+				else {
+					this.status = 'play';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = true;
+				}
+			}
+		}
+
+
+
+		function beforeOpenOrJoin(callback) {
+			var videoConstraints = {
+				deviceId: window.deviceId ? { exact: window.deviceId } : null,
+				width: 1280,
+				height: 720
+			};
+			navigator.mediaDevices.getUserMedia({
+					video: videoConstraints
+			}).then(async mediaStream => {
+			
+				navigator.mediaDevices.getUserMedia({
+					audio: true
+				}).then(async audioStream => {
+					
+					mediaStream.addTrack(audioStream.getAudioTracks()[0]);
+					
+					myStream(mediaStream);
+					connection.attachStreams = [mediaStream];	
+					callback();
+				
+				}).catch(function(err){
+				
+					alert("오디오를 확인해주세요");
+					myStream(mediaStream);
+					connection.attachStreams = [mediaStream];
+					callback();
+				
+				});
+			}).catch(function(err) {
+				alert("카메라를 확인해주세요.");
+			});
+		}
+		
+		
+		
+		// CANVAS 설정
+		var designer = new CanvasDesigner();
+		
+		designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
+		designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+		
+		designer.setSelected('pencil');
+		
+		designer.setTools({
+			pencil: true,
+			eraser: true,
+			image: true,
+			pdf: true,
+			text: false,
+			line: false,
+			arrow: false,
+			dragSingle: true,
+			dragMultiple: false,
+			arc: false,
+			rectangle: false,
+			quadratic: false,
+			bezier: false,
+			marker: false,
+			zoom: false,
+			lineWidth: false,
+			colorsPicker: false,
+			extraOptions: false,
+			code: false,
+			undo: false
+		});
+		
+		designer.appendTo(document.getElementById('widget-container'));
+		
+		
+		
+		
+		
+		
+		// canvas 데이터 처리
+		designer.addSyncListener(function(data) {
+			connection.send({canvas: true, data: data});
+		});
+		
+		connection.onopen = function(event) {
+			if (designer.pointsLength <= 0) {
+				setTimeout(function() {
+					connection.send('plz-sync-points');
+				}, 1000);
+			}
+		};
+		
+		
+		
+	
+		// CANVAS SYNC
+		connection.onmessage = function(event) {
+			if (event.data === 'plz-sync-points') {
+				designer.sync();
+				return;
+			}
+			
+			if (event.data.streamClose){
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = false;
+					}
+				});
+				return;
+			}
+			
+			if (event.data.streamOpen) {
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = true;
+					}
+				});
+				return;
+			}
+			
+			if (event.data.canvas) {
+				designer.syncData(event.data.data);
+			}
+		};
+		
+		
+		
+		
+		
+		
+		// BUTTON EVENT 
+		document.getElementById("screenShare").onclick = function (){
+			navigator.mediaDevices.getDisplayMedia({
+				screen: true
+			}).then(async mediaStream => {
+				document.getElementById("screenShare").disabled = true;
+				mediaStream.isScreen = true;
+				myStream(mediaStream, 1);
+				connection.addStream(mediaStream);
+			});
+		};
+	
+	
+		// OpenOrJoin
+		beforeOpenOrJoin(function() {
+			var roomId='a';
+			
+			connection.openOrJoin(roomId);
+			
+			connection.socket.on('uploadURL', (data) => {
+				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
+				document.getElementById('url-container').innerHTML += tagA;
+			});
+			
+			// STACK URL
+			connection.socket.on('urls', (data) => {
+				data.forEach(function (item, index, array){
+					var tagA = "<a href=" + item + ">" + (index+1) + "_video</a><br/>";
+					document.getElementById('url-container').innerHTML += tagA;
+				});
+			});
+			
+		});
+		
+	
+	</script>
+
+
+</body>
+</html>

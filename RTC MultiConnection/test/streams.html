@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
+<script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+	video {width:20%; height:10%; float:left;}
+	#widget-container {position: fixed;bottom: 0;right: 0;left: 0;height: 80%;border: 1px solid black; border-top:0; border-bottom: 0;}
+</style>
+
+</head>
+<body>
+	<div id="video-container"></div>
+	
+	<div style="float:right;">
+		<ul>
+			<li><button id="reset">reset Track</button></li>
+			<li><button id="replace">replace Track</button></li>
+			<li><button id="screenShare">Screen Share</button></li>
+		</ul>
+	</div>
+	
+	<div id="widget-container"></div>
+	<script>
+		var myVideo;
+		var connection = new RTCMultiConnection();
+		
+		connection.socketURL = '/';
+		
+		connection.dontCaptureUserMedia = true;
+		
+		connection.maxParticipantsAllowed = 5;
+		
+		connection.session = {
+			audio: true,
+			video: true,
+			data: true
+		};
+		
+		
+		
+		connection.onstream = function(event) {
+			var container = document.getElementById('video-container');
+			event.mediaElement.status = 'play';
+			container.appendChild( event.mediaElement );
+			event.mediaElement.play();
+			
+			document.getElementById(event.mediaElement.id).onclick = function(){
+				if(event.mediaElement.status === 'play'){
+					event.mediaElement.status = 'stop';
+					connection.send({streamClose : true, id : event.mediaElement.id});
+				}
+				else {
+					event.mediaElement.status = 'play';
+					connection.send({streamClose : false, id : event.mediaElement.id});
+				}
+			}
+		};
+		
+	
+		function myStream(mediaStream){
+			myVideo = document.createElement('video');
+			myVideo.muted = true;
+			myVideo.srcObject = mediaStream;
+			myVideo.id = mediaStream.id;
+			myVideo.status = 'play';
+			
+			var container = document.getElementById('video-container');
+			container.appendChild( myVideo );
+			myVideo.play();
+			
+			myVideo.onclick = function(){
+				if(this.status === 'play'){
+					this.status = 'stop';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = false;
+				}
+				else {
+					this.status = 'play';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = true;
+				}
+			}
+		}
+
+
+		function beforeOpenOrJoin(callback) {
+			var videoConstraints = {
+				deviceId: window.deviceId ? { exact: window.deviceId } : null,
+				width: 1920,
+				height: 1080
+			};
+			navigator.mediaDevices.getUserMedia({
+					video: videoConstraints, audio: true
+			}).then(async mediaStream => {
+				myStream(mediaStream);
+				connection.attachStreams = [mediaStream];
+				
+				callback();
+			}).catch(function(err) {
+				alert("사용 가능한 마이크가 없습니다.");
+				
+				navigator.mediaDevices.getUserMedia({
+					video: videoConstraints
+				}).then(async mediaStream => {
+					myStream(mediaStream);
+					connection.attachStreams = [mediaStream];
+											
+					callback();
+				});
+			});
+		}
+		
+		
+		
+		// BUTTON EVENT 
+		document.getElementById("screenShare").onclick = function (){
+			var videoConstraints = {
+				deviceId: window.deviceId ? { exact: window.deviceId } : null,
+				width: 1920,
+				height: 1080
+			};
+			navigator.mediaDevices.getDisplayMedia({
+				video: videoConstraints
+			}).then(async mediaStream => {
+				myStream(mediaStream);
+				connection.addStream(mediaStream);
+			});
+		};	
+		
+		document.getElementById("reset").onclick = function (){
+			connection.resetTrack();
+		};
+		
+		document.getElementById("replace").onclick = function (){
+			var videoConstraints = {
+				deviceId: window.deviceId ? { exact: window.deviceId } : null,
+				width: 1920,
+				height: 1080
+			};
+			navigator.mediaDevices.getDisplayMedia({
+				video: videoConstraints
+			}).then(async mediaStream => {
+				connection.replaceTrack(mediaStream);
+				connection.attachStreams = [mediaStream];
+				myVideo.srcObject = mediaStream;
+				myVideo.play();
+			});
+		};
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// CANVAS 설정
+		var designer = new CanvasDesigner();
+		
+		designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
+		designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+		
+		designer.setSelected('pencil');
+		
+		designer.setTools({
+			pencil: true,
+			text: true,
+			image: true,
+			pdf: true,
+			eraser: true,
+			line: true,
+			arrow: true,
+			dragSingle: true,
+			dragMultiple: true,
+			arc: true,
+			rectangle: true,
+			quadratic: false,
+			bezier: true,
+			marker: true,
+			zoom: false,
+			lineWidth: false,
+			colorsPicker: false,
+			extraOptions: false,
+			code: false,
+			undo: true
+		});
+		
+		designer.appendTo(document.getElementById('widget-container'));
+		
+		
+		
+		
+		
+		
+		// canvas 데이터 처리
+		designer.addSyncListener(function(data) {
+			connection.send(data);
+		});
+		
+		connection.onopen = function(event) {
+			if (designer.pointsLength <= 0) {
+				setTimeout(function() {
+					connection.send('plz-sync-points');
+				}, 1000);
+			}
+		};
+		
+		
+		connection.onmessage = function(event) {
+			// CANVAS SYNC
+			if (event.data === 'plz-sync-points') {
+				designer.sync();
+				return;
+			}
+			
+			if (event.data.streamClose){
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = false;
+					}
+				});
+				return;
+			}
+			
+			if (!event.data.streamClose) {
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = true;
+					}
+				});
+				return;
+			}
+			
+			designer.syncData(event.data);
+		};
+		
+		
+		
+		
+		
+		// OpenOrJoin
+		beforeOpenOrJoin(function() {
+				connection.openOrJoin("asd");
+		});
+		
+	</script>
+
+
+</body>
+</html>

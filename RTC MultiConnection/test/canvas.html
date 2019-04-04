@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
+<script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+</head>
+<body>
+
+	<script>
+			
+		function openroom(){
+			connection.open("asdf");
+		}
+		function joinroom(){
+			connection.join("asdf");		
+		}
+	</script>
+	<div id="widget-container" style="position: fixed;bottom: 0;right: 0;left: 20%;height: 100%;border: 1px solid black; border-top:0; border-bottom: 0;"></div>
+	<button onclick="openroom()"> open </button>
+	<button onclick="joinroom()"> join </button>
+	
+	<script>
+	
+	
+		var connection = new RTCMultiConnection();
+		
+		connection.socketURL = '/';
+		
+		connection.session = {
+			data: true
+		};
+		
+		connection.onopen = function(event) {
+			if (designer.pointsLength <= 0) {
+				setTimeout(function() {
+					connection.send('plz-sync-points');
+				}, 1000);
+			}
+		};
+		
+		
+		connection.onmessage = function(event) {
+			if (event.data === 'plz-sync-points') {
+				designer.sync();
+				return;
+			}
+			designer.syncData(event.data);
+		};
+		
+		
+		
+		
+		
+		// CANVAS 설정
+		var designer = new CanvasDesigner();
+		
+		designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
+		designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+		
+		designer.setSelected('pencil');
+		
+		designer.setTools({
+			pencil: true,
+			text: true,
+			image: true,
+			pdf: true,
+			eraser: true,
+			line: true,
+			arrow: true,
+			dragSingle: true,
+			dragMultiple: true,
+			arc: true,
+			rectangle: true,
+			quadratic: false,
+			bezier: true,
+			marker: true,
+			zoom: false,
+			lineWidth: false,
+			colorsPicker: false,
+			extraOptions: false,
+			code: false,
+			undo: true
+		});
+		
+		designer.appendTo(document.getElementById('widget-container'));
+		
+		
+		
+		// 그리기 데이터 전송
+		designer.addSyncListener(function(data) {
+			connection.send(data);
+		});
+		
+	
+	</script>
+
+
+</body>
+</html>

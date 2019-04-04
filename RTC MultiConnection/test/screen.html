@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="https://rtcmulticonnection.herokuapp.com/dist/RTCMultiConnection.min.js"></script>
+<script src="https://rtcmulticonnection.herokuapp.com/socket.io/socket.io.js"></script>
+
+<script>
+
+	var connection = new RTCMultiConnection();
+
+	connection.socketURL = '/';
+	connection.dontCaptureUserMedia = true;
+
+	connection.onstream = function(event) {
+		document.body.appendChild( event.mediaElement );
+		event.mediaElement.play();
+	};
+
+
+	connection.session = {
+			video: true,
+			audio: true
+	};
+
+
+	connection.sdpConstraints.mandatory = {
+            OfferToReceiveVideo: !!connection.session.video,
+            OfferToReceiveAudio: !!connection.session.audio
+	};
+
+
+
+
+	// CREATE STREAM
+	function myStream(mediaStream){
+		var video = document.createElement('video');
+		video.muted = true; // 내 목소리 안들리기
+		video.srcObject = mediaStream;
+		document.body.appendChild( video );
+		video.play();
+	}
+
+
+	function beforeOpenOrJoin(callback) {
+		var videoConstraints = {
+			deviceId: window.deviceId ? { exact: window.deviceId } : null,
+			width: 1920,
+			height: 1080
+		};
+		navigator.mediaDevices.getDisplayMedia({
+				video: videoConstraints
+		}).then(async mediaStream => {
+				myStream(mediaStream);
+				connection.attachStreams = [mediaStream];
+				
+				callback();
+			});
+	}
+</script>
+
+</head>
+<body>
+	<input type="text" id="room-id" value="abcdef">
+
+	<button id="open-room">Open Room</button>
+	<button id="join-room">Join Room</button>
+	<div id="videos-container"></div>
+
+
+
+	<script>
+		document.getElementById('open-room').onclick = function() {
+			beforeOpenOrJoin(function() {
+				connection.open(document.getElementById('room-id').value);
+			});
+		};
+		document.getElementById('join-room').onclick = function() {
+			beforeOpenOrJoin(function() {
+				connection.join(document.getElementById('room-id').value);
+			});
+		};
+	</script>
+
+
+
+</body>
+
+</html>

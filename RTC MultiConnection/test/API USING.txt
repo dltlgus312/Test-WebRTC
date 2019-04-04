@@ -1,0 +1,13 @@
+connection.autoCloseEntireSession = true; 			// 생성자가 방을 떠나도 방은 유지
+connection.maxParticipantsAllowed = 1000;			// 최대 연결자 수
+connection.publicRoomIdentifier = params.publicRoomIdentifier; 	// 공용 방 생성
+connection.enableFileSharing = true;				// 파일 공유 허가
+connection.dontCaptureUserMedia = true; 			// 자동 미디어 생성 안함
+connection.socketOptions = {}				// SOCKET.IO 연결 옵션
+connection.iceServers.push( {} );				// ICE SERVER LIST
+connection.onopen = function(event){ alert("HELLO") }		// 최초 방 생성 후 첫 연결(peer to peer) 시
+connection.onmessage = function(event){event.data}		// send > onmessage
+connection.send(data);					// send > onmessage
+connection.onstream = function(event){ event.mediaElement }	// 새미디어가 들어올때
+connection.attachStreams = [  ]				// 미디어 스트림 리스트
+connection.attachStreams.push( stream );			// 미디어 스트림 리스트
