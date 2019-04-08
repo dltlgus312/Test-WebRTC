@@ -84,6 +84,18 @@
 		
 		connection.maxParticipantsAllowed = 2;
 		
+		connection.iceServers = [];
+		
+		connection.iceServers.push({
+			urls: 'stun:211.44.246.219:3478'
+		});
+
+		connection.iceServers.push({
+			urls: 'turn:211.44.246.219:3478',
+			credential: 'test',
+			username: 'test'
+		});
+		
 		connection.session = {
 			audio: true,
 			video: true,
