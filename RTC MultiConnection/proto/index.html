@@ -209,6 +209,10 @@
 			connection.streamEvents.selectAll({ isVideo:true }).forEach(function(event) {
 				streams.push(event.stream);
 			});
+			
+			connection.attachStreams.forEach(function(stream) {
+				streams.push(stream);
+			});
 		
 			multiRecording(streams);
 		}
@@ -221,7 +225,7 @@
 				connection.socket.emit('uploadFile', {data:data});
 			};
 			
-			multiStreamRecorder.start(3000);
+			multiStreamRecorder.start(5 * 1000);
 		}
 		
 		
@@ -268,7 +272,10 @@
 			}).then(async mediaStream => {
 			
 				navigator.mediaDevices.getUserMedia({
-					audio: true
+					// 에코 삭제
+					audio: {
+						echoCancellation: true
+					}
 				}).then(async audioStream => {
 					
 					mediaStream.addTrack(audioStream.getAudioTracks()[0]);
