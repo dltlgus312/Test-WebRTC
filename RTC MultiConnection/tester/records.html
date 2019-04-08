@@ -1,0 +1,70 @@
+<html>
+	<head>
+		<script src="./node_modules/msr/MediaStreamRecorder.min.js"></script>
+		<script>
+			var streams = [];
+		
+			function set(){
+				navigator.mediaDevices.getUserMedia({video:true}).then(stream => {
+					streams.push(stream);
+					var video = document.createElement('video');
+					
+					video.srcObject = stream;
+					video.play();
+					
+					document.body.appendChild(video);
+				});
+			}
+			
+			set();
+			set();
+			set();
+			
+		</script>
+	</head>
+	
+	<body>
+		<button id="a">a</button>
+		<script>
+			document.getElementById('a').onclick = function(){
+				multiStreamRecorder = new MultiStreamRecorder([streams[0], streams[0]]);
+				
+				multiStreamRecorder.ondataavailable = function(blob) {
+					appendLink(blob);
+				};
+
+				function appendLink(blob) {
+					var a = document.createElement('a');
+					a.innerHTML = 'Open Recorded';
+					a.download = "test.webm";
+					a.href = window.URL.createObjectURL(blob);
+
+					document.body.appendChild(a);
+					document.body.appendChild(document.createElement('hr'));
+				}
+			
+				multiStreamRecorder.start(3000);
+			}
+			
+			
+		
+		</script>
+	<body>
+</html>
+
+
+
+
+
+
+
+
+<!-- multiStreamRecorder = new MultiStreamRecorder([stream, stream]); -->
+                    <!-- multiStreamRecorder.stream = stream; -->
+					
+					<!-- multiStreamRecorder.previewStream = function(stream) { -->
+						<!-- video.srcObject = stream; -->
+						<!-- video.play(); -->
+					<!-- }; -->
+
+                    

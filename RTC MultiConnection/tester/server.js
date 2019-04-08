@@ -49,8 +49,8 @@ app.get('/record', ( req, res ) => {
 	res.sendfile( 'record.html' );
 });
 
-app.get('/index', ( req, res ) => {
-	res.sendfile( __dirname + '/record/index.html' );
+app.get('/records', ( req, res ) => {
+	res.sendfile( 'records.html' );
 });
 
 
@@ -83,7 +83,6 @@ io.on( 'connection', ( socket ) => {
 			if(wstream){
 				console.log("===== DATA END & CLOSE =====");
 				wstream.end();
-				// fs.unlink( __dirname + '/temp/test.webm' );
 			}
 		}
 	});
