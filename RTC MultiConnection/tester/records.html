@@ -1,6 +1,7 @@
 <html>
 	<head>
 		<script src="./node_modules/msr/MediaStreamRecorder.min.js"></script>
+		<!-- <script src="https://cdn.webrtc-experiment.com/MediaStreamRecorder.js"></script> -->
 		<script>
 			var streams = [];
 		
@@ -27,7 +28,7 @@
 		<button id="a">a</button>
 		<script>
 			document.getElementById('a').onclick = function(){
-				multiStreamRecorder = new MultiStreamRecorder([streams[0], streams[0]]);
+				multiStreamRecorder = new MultiStreamRecorder(streams);
 				
 				multiStreamRecorder.ondataavailable = function(blob) {
 					appendLink(blob);
