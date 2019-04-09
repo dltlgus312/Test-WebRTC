@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+	
+	<script src="/node_modules/jquery/dist/jquery.min.js"></script>
+	<script src="/node_modules/webrtc-screen-capturing/getScreenId.js"></script>
+	
+	<script>
+		function getScreenStream(callback) {
+			if (navigator.getDisplayMedia) {
+				navigator.getDisplayMedia({
+					video: true
+				}).then( function(screenStream) {
+					callback(screenStream);
+				});
+			} else if (navigator.mediaDevices.getDisplayMedia) {
+				navigator.mediaDevices.getDisplayMedia({
+					video: true
+				}).then(screenStream => {
+					callback(screenStream);
+				});
+			} else {
+				getScreenId(function(err, sourceId, screen_constraints) {
+					navigator.mediaDevices.getUserMedia(screen_constraints).then(function(screenStream) {
+						callback(screenStream);
+					});
+				});
+				
+				getScreenConstraints(function(error, screen_constraints) {
+					navigator.getUserMedia = navigator.getUserMedia || navigator.mediaDevices.getUserMedia;
+					navigator.getUserMedia({
+						video: screen_constraints
+					}, function(stream) {
+						callback(stream);
+						
+					}, function(error) {
+						alert(JSON.stringify(error, null, '\t'));
+					});
+				});
+			}
+		}
+		
+		$(document).ready(function(){
+			var video = document.createElement('video');
+			
+			getScreenStream(function(screenStream) {
+				video.srcObject = screenStream;
+				video.play();
+				document.body.appendChild(video);
+			});
+			
+		})
+	</script>
+	
+</head>
+<body>
+
+</body>
+</html>

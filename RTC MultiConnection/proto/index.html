@@ -183,40 +183,40 @@
 		
 		
 		// FUNCTIONS
-		<!-- function recorde(){ -->
-			<!-- var displayStream;  -->
-			<!-- navigator.mediaDevices.getDisplayMedia({video:true}) -->
-			<!-- .then((stream)=>{ -->
-				<!-- displayStream = stream; -->
-				<!-- connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) { -->
+		function recorde(){
+			var displayStream; 
+			navigator.mediaDevices.getDisplayMedia({video:true})
+			.then((stream)=>{
+				displayStream = stream;
+				connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) {
 					<!-- 사운드 매핑 -->
-					<!-- displayStream.addTrack(videoStream.stream.getAudioTracks()[0]); -->
-					<!-- recording(displayStream); -->
-				<!-- }); -->
-			<!-- }) -->
-			<!-- .catch((err)=>{ -->
-				<!-- if(err instanceof TypeError){ -->
-					<!-- alert('에러 : ' + err); -->
-					<!-- recording(displayStream); -->
-				<!-- }else { -->
-					<!-- alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err); -->
-					<!-- recorde(); -->
-				<!-- } -->
+					displayStream.addTrack(videoStream.stream.getAudioTracks()[0]);
+					recording(displayStream);
+				});
+			})
+			.catch((err)=>{
+				if(err instanceof TypeError){
+					alert('에러 : ' + err);
+					recording(displayStream);
+				}else {
+					alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err);
+					recorde();
+				}
 				<!-- if(err.constructor === NotAllowedError) NOT WORKING -->
-			<!-- }); -->
-		<!-- } -->
+			});
+		}
 		
-		<!-- function recording(stream){ -->
+		function recording(stream){
 		
-			<!-- mediaRecorder = new MediaStreamRecorder(stream); -->
-			<!-- mediaRecorder.mimeType = 'video/mp4;codecs=h264'; -->
+			mediaRecorder = new MediaStreamRecorder(stream);
+			mediaRecorder.mimeType = 'video/mp4;codecs=h264';
 			
-			<!-- mediaRecorder.ondataavailable = function (data) { -->
-				<!-- connection.socket.emit('uploadFile', {data:data}); -->
-			<!-- }; -->
+			mediaRecorder.ondataavailable = function (data) {
+				connection.socket.emit('uploadFile', {data:data});
+			};
 			
-			<!-- mediaRecorder.start(10 * 1000); -->
-		<!-- } -->
+			mediaRecorder.start(10 * 1000);
+		}
 		
 		
 		
