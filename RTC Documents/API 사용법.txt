@@ -1,0 +1,35 @@
+connection.autoCloseEntireSession = true; 				생성자가 방을 떠나도 방은 유지
+connection.maxParticipantsAllowed = 1000; 				최대 연결자 수
+connection.publicRoomIdentifier = params.publicRoomIdentifier; 		공용 방 생성
+connection.enableFileSharing = true; 					파일 공유 허가
+
+
+exact	정확한.. 없거나 안된다면 에러 표출! ( 기본은 근사값[사용가능한것중 아무거나]을 사용하도록 되있다. )
+navigator.mediaDevices.enumerateDevices(); 				디바이스 종류
+video: { optional: [{deviceId: selected_video_source_id}] } 			디바이스 장치 선택
+navigator.mediaDevices.ondevicechange = function (event){} 		디바이스 장치 추가 & 해제
+video: { facingMode: "user" } 					전면 카메라
+video: { facingMode: { exact: "environment" } } 				후면 카메라
+video: { frameRate: { ideal: 10, max: 15 } };
+
+
+applyConstraints(); 							제약조건 변경시......
+
+
+
+
+if(window.MediaRecorder !== undefined) 				미디어 리코더가 있는지(녹화 가능여부) 확인 메소드
+
+
+
+
+
+
+아래의 코드를 논리적으로 해석하면 1024x776 - 1120x800 - 1350x1020 - 1920x1080 와 같이
+ 지원하는 여러 해상도가 있으면 브라우저는 ideal 해상도와 가장 근사하는 1120x800 해상도를
+ 미디어 장치에 요청 후 반환합니다.
+
+ video: {
+    width: { min: 1024, ideal: 1280, max: 1920 },
+    height: { min: 776, ideal: 720, max: 1080 }
+  }
