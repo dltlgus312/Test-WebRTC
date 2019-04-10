@@ -63,6 +63,7 @@
 	<div id="button-container">
 		<button id="screenShare">화면공유</button>
 		<button id="videoRecorde">녹화시작</button>
+		<button id="videoResolution">화질변경</button>
 	</div>
 	
 	<div id="chat-container">
@@ -512,6 +513,14 @@
 			}
 		});
 	
+		document.getElementById("videoResolution").onclick = function(){
+			connection.applyConstraints({
+				video: {
+					width: 320,
+					height: 240
+				}
+			});
+		}
 	
 	
 	
