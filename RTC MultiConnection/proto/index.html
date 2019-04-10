@@ -63,7 +63,10 @@
 	<div id="button-container">
 		<button id="screenShare">화면공유</button>
 		<button id="videoRecorde">녹화시작</button>
+		<button id="videoResolution">전면/후면</button>
+		
 		<button id="videoResolution">화질변경</button>
+		<button id="videoResolution">장치선택</button>
 	</div>
 	
 	<div id="chat-container">
@@ -278,19 +281,20 @@
 				}
 			}
 		}
-	
+		
 		function beforeOpenOrJoin(callback) {
+			
 			var videoConstraints = {
-				deviceId: window.deviceId ? { exact: window.deviceId } : null,
-				width: 1280,
-				height: 720
+				<!-- deviceId: window.deviceId ? { exact: window.deviceId } : null,   -->
+				<!-- facingMode: "user" -->
+				<!-- facingMode: {exact : "environment"} -->
 			};
+			
 			navigator.mediaDevices.getUserMedia({
 					video: videoConstraints
 			}).then(async mediaStream => {
 			
 				navigator.mediaDevices.getUserMedia({
-					// 에코 삭제
 					audio: {
 						echoCancellation: true
 					}
@@ -311,6 +315,7 @@
 				
 				});
 			}).catch(function(err) {
+				console.log(err);
 				alert("카메라를 확인해주세요.");
 			});
 		}
@@ -395,7 +400,7 @@
 			marker: false,
 			zoom: false,
 			lineWidth: false,
-			colorsPicker: false,
+			colorsPicker: true,
 			extraOptions: false,
 			code: false,
 			undo: false
@@ -512,15 +517,6 @@
 				chatSend();
 			}
 		});
-	
-		document.getElementById("videoResolution").onclick = function(){
-			connection.applyConstraints({
-				video: {
-					width: 320,
-					height: 240
-				}
-			});
-		}
 	
 	
 	
