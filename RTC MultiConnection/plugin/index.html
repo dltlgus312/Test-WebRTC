@@ -23,23 +23,26 @@
 					callback(screenStream);
 				});
 			} else {
+				console.log("1");
 				getScreenId(function(err, sourceId, screen_constraints) {
+					console.log(err, sourceId, screen_constraints);
 					navigator.mediaDevices.getUserMedia(screen_constraints).then(function(screenStream) {
+						console.log("b");
 						callback(screenStream);
 					});
 				});
 				
-				getScreenConstraints(function(error, screen_constraints) {
-					navigator.getUserMedia = navigator.getUserMedia || navigator.mediaDevices.getUserMedia;
-					navigator.getUserMedia({
-						video: screen_constraints
-					}, function(stream) {
-						callback(stream);
+				<!-- getScreenConstraints(function(error, screen_constraints) { -->
+					<!-- navigator.getUserMedia = navigator.getUserMedia || navigator.mediaDevices.getUserMedia; -->
+					<!-- navigator.getUserMedia({ -->
+						<!-- video: screen_constraints -->
+					<!-- }, function(stream) { -->
+						<!-- callback(stream); -->
 						
-					}, function(error) {
-						alert(JSON.stringify(error, null, '\t'));
-					});
-				});
+					<!-- }, function(error) { -->
+						<!-- alert(JSON.stringify(error, null, '\t')); -->
+					<!-- }); -->
+				<!-- }); -->
 			}
 		}
 		
@@ -47,6 +50,7 @@
 			var video = document.createElement('video');
 			
 			getScreenStream(function(screenStream) {
+				console.log("asdasd");
 				video.srcObject = screenStream;
 				video.play();
 				document.body.appendChild(video);
