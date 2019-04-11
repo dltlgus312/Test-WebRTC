@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+
+<script>
+
+	var connection = new RTCMultiConnection();
+
+	connection.socketURL = '/';
+	connection.dontCaptureUserMedia = true;
+
+	connection.onstream = function(event) {
+		var container = document.getElementById('videos-container');
+		container.appendChild( event.mediaElement );
+		event.mediaElement.play();
+	};
+
+	connection.session = {
+			video: true,
+			audio: true
+	};
+
+
+	connection.sdpConstraints.mandatory = {
+            OfferToReceiveVideo: !!connection.session.video,
+            OfferToReceiveAudio: !!connection.session.audio
+	};
+
+
+	// CREATE STREAM
+	function myStream(mediaStream){
+		var video = document.createElement('video');
+		video.muted = true; // 내 목소리 안들리기
+		video.srcObject = mediaStream;
+		video.id = mediaStream.id;
+		
+		var container = document.getElementById('videos-container');
+		container.appendChild( video );
+		video.play();
+	}
+	
+	function beforeOpenOrJoin(callback) {
+		var videoConstraints = {
+			deviceId: window.deviceId ? { exact: window.deviceId } : null
+		};
+		
+		navigator.mediaDevices.getUserMedia({
+				video: videoConstraints
+		}).then(async mediaStream => {
+				myStream(mediaStream);
+				connection.attachStreams = [mediaStream];
+				callback();
+		});
+	}
+	
+	// Devices LIST
+	function selector(){
+		
+		navigator.mediaDevices.enumerateDevices().then((devices) => {
+			
+			var select = document.getElementById('select');
+			select.innerHTML = '';
+		
+			devices.forEach(function(device, index){
+				var option = document.createElement('option');
+				option.text = device.label;
+				option.value = device.deviceId;
+				select.appendChild(option);		
+			});
+			
+			select.onchange = function(event){
+				replaceTrack(connection.attachStreams[0], select.options[select.selectedIndex].value);
+				
+				<!-- 오디오 출력 변경시...???? 검증 필요 -->
+				<!-- var video = document.getElementById(stream.id); -->
+				<!-- if (typeof video.sinkId !== 'undefined') { -->
+					<!-- video.setSinkId(audioDev.value).then().catch(err => {console.log(err);}); -->
+				<!-- }else { -->
+					<!-- alert("not support"); -->
+				<!-- } -->
+			}
+			
+		}).catch(err => {
+			console.log(err);
+		});
+	}
+	
+	function replaceTrack(stream, deviceId){
+		navigator.mediaDevices.getUserMedia({video : {deviceId: deviceId ? { exact: deviceId } : null}}).then(str => {
+			connection.replaceTrack(str);
+			stream.addTrack(str.getVideoTracks()[0]);
+			stream.removeTrack(stream.getVideoTracks()[0]);
+		}).catch(err => {
+			alert(err);
+		});
+	}
+	
+	navigator.mediaDevices.ondevicechange = function (event){
+		replaceTrack(connection.attachStreams[0]);
+		selector();
+	} 
+	
+	beforeOpenOrJoin(function() {
+		connection.openOrJoin('a');
+		selector();		
+	});
+	
+</script>
+
+<style>
+	body {width:100%;height:100%;}
+	#videos-container {width:100%;height:100%;}
+	video {width:50%;height:100%}
+</style>
+</head>
+<body>
+	<div id="videos-container"></div>
+	<div id="device-container">
+		<select id="select"></select>
+	</div>
+</body>
+</html>

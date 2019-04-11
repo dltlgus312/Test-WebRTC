@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+
+<script>
+
+	var connection = new RTCMultiConnection();
+
+	connection.socketURL = '/';
+	connection.dontCaptureUserMedia = true;
+
+	connection.onstream = function(event) {
+		var container = document.getElementById('videos-container');
+		container.appendChild( event.mediaElement );
+		event.mediaElement.play();
+	};
+
+	connection.session = {
+			video: true,
+			audio: true
+	};
+
+	connection.sdpConstraints.mandatory = {
+            OfferToReceiveVideo: !!connection.session.video,
+            OfferToReceiveAudio: !!connection.session.audio
+	};
+
+
+	// CREATE STREAM
+	function myStream(mediaStream){
+		var video = document.createElement('video');
+		video.srcObject = mediaStream;
+		video.id = mediaStream.id;
+		
+		var container = document.getElementById('videos-container');
+		container.appendChild( video );
+		video.play();
+	}
+	
+	function beforeOpenOrJoin(callback) {
+		var videoConstraints = {
+			deviceId: window.deviceId ? { exact: window.deviceId } : null,
+		};
+		
+		navigator.mediaDevices.getUserMedia({
+				video: videoConstraints
+		}).then(async mediaStream => {
+				myStream(mediaStream);
+				connection.attachStreams = [mediaStream];
+				callback();
+		});
+	}
+	
+	function facingMode(button){
+		if (button.value === "user"){
+			button.value = "environment";
+			button.innerHTML = "후면";
+		}else if(button.value === "environment"){
+			button.value = "user";
+			button.innerHTML = "전면";
+		}
+		console.log(button.value);
+		connection.applyConstraints( { video: { facingMode: { exact : button.value } }} );
+	}
+	
+	beforeOpenOrJoin(function() {
+		connection.openOrJoin('a');
+	});
+	
+</script>
+
+<style>
+	body {width:100%;height:100%;}
+	#videos-container {width:100%;height:100%;}
+	video {width:50%;height:100%}
+	button {width:10%;height:10%}
+</style>
+</head>
+<body>
+	<div id="videos-container"></div>
+	<button onclick="facingMode(this)" value="user">전면</button>
+</body>
+</html>

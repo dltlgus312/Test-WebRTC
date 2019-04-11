@@ -1,2 +1,6 @@
-SERVER > socket.io, express, rtcmulticonnection-server, fs, 
-	 key.pfx 필요
+SERVER > key.pfx 필요
+	 socket.io, express, rtcmulticonnection-server, fs
+
+
+client > 
+	

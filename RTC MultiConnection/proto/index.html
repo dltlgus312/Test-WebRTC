@@ -63,10 +63,20 @@
 	<div id="button-container">
 		<button id="screenShare">화면공유</button>
 		<button id="videoRecorde">녹화시작</button>
-		<button id="videoResolution">전면/후면</button>
+		<button id="facingMode">전면/후면</button>
+		<div>
+			<select id="deviceSelect"></select>
+			<select id="resolutionSelect">
+				<option id="hqvga" value="240">HqVGA</option>
+				<option id="qvga" value="320">QVGA</option>
+				<option id="hvga" value="480">HVGA</option>
+				<option id="nhd" value="640">NHD</option>
+				<option id="qhd" value="960">QHD</option>
+				<option id="hd" value="1280">HD</option>
+				<option id="fhd" value="1920">FHD</option>
+			</select>
+		</div>
 		
-		<button id="videoResolution">화질변경</button>
-		<button id="videoResolution">장치선택</button>
 	</div>
 	
 	<div id="chat-container">
@@ -249,6 +259,200 @@
 			multiStreamRecorder.start(5 * 1000);
 		}
 		
+		function localRecordStart(){
+		
+			var chunk = [];
+			var stream = connection.attachStreams[0];
+			var video = document.getElementById(stream.id);
+			
+			<!-- var options = {mimeType: 'video/webm;codecs=vp9'}; 제한적 지원.. -->
+			<!-- var options = {mimeType: 'video/mp4;codecs=h264'}; 지원 안함.. -->
+			<!-- localRecord = new MediaRecorder(stream, options); FireFox ( options ) 에러.. -->
+			
+			localRecord = new MediaRecorder(stream);
+				
+			localRecord.ondataavailable = function(e) {
+				console.log("녹화 중지 : DATA SAVE");
+				chunk.push(e.data);
+			}
+			
+			localRecord.onstop = function(){
+				console.log("녹화 중지 : ON STOP");
+				
+				var url = URL.createObjectURL(new Blob(chunk));
+				var html = "<a href='" + url + "' download='recorde.webm'> 녹화파일 </a><br/>";
+				
+				var contain = document.getElementById('url-local');
+				contain.innerHTML += html;
+				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+				video.style.border = ''
+				
+				var btn = document.getElementById("videoRecorde");
+				btn.status = 'stop'
+				btn.innerHTML = '녹화시작';
+			}
+			
+			localRecord.start();	
+			video.style.border = '3px solid #ff0000'
+		}
+		
+		
+
+
+
+		function beforeOpenOrJoin(callback) {
+		
+			findHighResolution(width => {
+				// 16 : 9 Ratio Resolution
+				var videoConstraints = {
+					width: { exact : width },
+					height: { exact : width/16*9 }
+				};
+				
+				navigator.mediaDevices.getUserMedia({
+					video: videoConstraints
+				}).then(async mediaStream => {
+				
+					navigator.mediaDevices.getUserMedia({
+						audio: {
+							echoCancellation: true
+						}
+					}).then(async audioStream => {
+						
+						mediaStream.addTrack(audioStream.getAudioTracks()[0]);
+						
+						myStream(mediaStream);
+						connection.attachStreams = [mediaStream];	
+						callback();
+					
+					}).catch(function(err){
+					
+						alert("오디오를 확인해주세요");
+						myStream(mediaStream);
+						connection.attachStreams = [mediaStream];
+						callback();
+					
+					});
+				}).catch(function(err) {
+					console.log(err);
+					alert("카메라를 확인해주세요.");
+				});
+			});
+		}
+		
+		function afterOpenOrJoin(){
+			
+			deviceSelector();
+			
+			resolutionSelector();
+			
+			// 디바이스 변경 이벤트
+			navigator.mediaDevices.ondevicechange = function (event){
+				changeDevice(connection.attachStreams[0]);
+				deviceSelector();
+			} 
+			
+			
+			connection.socket.on('uploadURL', (data) => {
+				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
+				var contain = document.getElementById('url-server');
+				contain.innerHTML += tagA;
+				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+			});
+			
+			// STACK URL
+			connection.socket.on('urls', (data) => {
+				data.forEach(function (item, index, array){
+					var tagA = "<a href=" + item + ">" + (index+1) + "_video</a><br/>";
+					var contain = document.getElementById('url-server');
+					contain.innerHTML += tagA;
+					contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+				});
+			});
+		}
+		
+			
+		
+		// Devices LIST
+		function deviceSelector(){
+			
+			navigator.mediaDevices.enumerateDevices().then((devices) => {
+				
+				var select = document.getElementById('deviceSelect');
+				select.innerHTML = '';
+							
+				var option = document.createElement('option');
+				option.text = "카메라 선택";
+				option.value = "";
+				select.appendChild(option);		
+			
+				devices.forEach(function(device, index){
+					if(device instanceof InputDeviceInfo){
+						var option = document.createElement('option');
+						option.text = device.label;
+						option.value = device.deviceId;
+						select.appendChild(option);							
+					}
+				});
+				
+				select.onchange = function(event){
+					changeDevice(connection.attachStreams[0], select.options[select.selectedIndex].value);
+					
+					<!-- 오디오 출력 변경시...???? 검증 필요 -->
+					<!-- var video = document.getElementById(stream.id); -->
+					<!-- if (typeof video.sinkId !== 'undefined') { -->
+						<!-- video.setSinkId(audioDev.value).then().catch(err => {console.log(err);}); -->
+					<!-- }else { -->
+						<!-- alert("not support"); -->
+					<!-- } -->
+				}
+				
+			}).catch(err => {
+				console.log(err);
+			});
+		}
+		
+		function resolutionSelector(){
+			var maxWidth = connection.attachStreams[0].getVideoTracks()[0].getSettings().width;
+			document.querySelector('#resolutionSelect [value="' + maxWidth + '"]').selected = true;
+			var select = document.getElementById('resolutionSelect');
+			
+			for(var i=select.selectedIndex; i<=select.children.length; i++){
+				select.removeChild(select.children[select.children.length-1]);
+			}
+		}
+		
+		
+		function changeDevice(stream, deviceId){
+			var width = stream.getVideoTracks()[0].getSettings().width;
+			var videoConstraints = {
+				deviceId: deviceId ? { exact: deviceId } : null,
+				width: width ,
+				height: width/16*9
+			};
+		
+			navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(str => {
+				connection.replaceTrack(str);
+				stream.addTrack(str.getVideoTracks()[0]);
+				stream.removeTrack(stream.getVideoTracks()[0]);
+			}).catch(err => {
+				alert(err);
+			});
+		}
+		
+		
+		// Available Max Resolution ( WIDTH )
+		function findHighResolution(callback){
+			var videoConstraints = {
+				width: { ideal: 1280 },
+				height: { ideal: 720 }
+			};
+			
+			navigator.mediaDevices.getUserMedia({ video: videoConstraints })
+				.then(stream => {
+					callback(stream.getVideoTracks()[0].getSettings().width)
+				}).catch(err => {alert(err);});
+		}
 		
 		
 		function myStream(mediaStream, type){
@@ -280,77 +484,6 @@
 					tracks[0].enabled = true;
 				}
 			}
-		}
-		
-		function beforeOpenOrJoin(callback) {
-			
-			var videoConstraints = {
-				<!-- deviceId: window.deviceId ? { exact: window.deviceId } : null,   -->
-				<!-- facingMode: "user" -->
-				<!-- facingMode: {exact : "environment"} -->
-			};
-			
-			navigator.mediaDevices.getUserMedia({
-					video: videoConstraints
-			}).then(async mediaStream => {
-			
-				navigator.mediaDevices.getUserMedia({
-					audio: {
-						echoCancellation: true
-					}
-				}).then(async audioStream => {
-					
-					mediaStream.addTrack(audioStream.getAudioTracks()[0]);
-					
-					myStream(mediaStream);
-					connection.attachStreams = [mediaStream];	
-					callback();
-				
-				}).catch(function(err){
-				
-					alert("오디오를 확인해주세요");
-					myStream(mediaStream);
-					connection.attachStreams = [mediaStream];
-					callback();
-				
-				});
-			}).catch(function(err) {
-				console.log(err);
-				alert("카메라를 확인해주세요.");
-			});
-		}
-		
-		function localRecordStart(){
-		
-			var chunk = [];
-			var stream = connection.attachStreams[0];
-			var video = document.getElementById(stream.id);
-			
-			<!-- var options = {mimeType: 'video/webm;codecs=vp9'}; 제한적 지원.. -->
-			<!-- var options = {mimeType: 'video/mp4;codecs=h264'}; 지원 안함.. -->
-			<!-- localRecord = new MediaRecorder(stream, options); FireFox ( options ) 에러.. -->
-			
-			localRecord = new MediaRecorder(stream);
-				
-			localRecord.ondataavailable = function(e) {
-				console.log("녹화 중지 : DATA SAVE");
-				chunk.push(e.data);
-			}
-			
-			localRecord.onstop = function(){
-				console.log("녹화 중지 : ON STOP");
-				
-				var url = URL.createObjectURL(new Blob(chunk));
-				var html = "<a href='" + url + "' download='recorde.webm'> 녹화파일 </a><br/>";
-				
-				var contain = document.getElementById('url-local');
-				contain.innerHTML += html;
-				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
-				video.style.border = ''
-			}
-			
-			localRecord.start();	
-			video.style.border = '3px solid #ff0000'
 		}
 		
 		function chatSend(){
@@ -475,13 +608,19 @@
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
+			connection.resetScreen(); 
 			navigator.mediaDevices.getDisplayMedia({
 				screen: true
 			}).then(async mediaStream => {
 				<!-- document.getElementById("screenShare").disabled = true; -->
-				mediaStream.isScreen = true;
-				myStream(mediaStream, 1);
-				connection.addStream(mediaStream);
+				if(!connection.attachStreams[1]){				
+					mediaStream.isScreen = true;
+					myStream(mediaStream, 1);
+					connection.attachStreams.push(mediaStream);
+					connection.addStream(mediaStream);				
+				}else {
+					connection.replaceTrack(mediaStream.getTracks()[0]);
+				}
 			});
 		};
 		
@@ -499,7 +638,7 @@
 				this.status = 'stop'
 				this.innerHTML = '녹화시작';
 				
-				if(localRecord){
+				if(localRecord && localRecord.state != 'inactive'){
 					localRecord.stop();
 				}
 			}
@@ -517,6 +656,24 @@
 				chatSend();
 			}
 		});
+		
+		document.getElementById('resolutionSelect').onchange = function (event){
+			var selectWidth = this.options[this.selectedIndex].value;
+			connection.applyConstraints({
+				video : {
+					width : { exact : selectWidth },
+					height : { exact : selectWidth/16*9 }
+				}
+			});
+		}
+		
+		document.getElementById('facingMode').onclick = function (event){
+			connection.mediaConstraints.video.optional.forEach( option => {
+				if(option.facingMode == 'user'){
+					connection.applyConstraints({video :{facingMode : {exact : 'environment'}}});
+				}
+			});			
+		}
 	
 	
 	
@@ -526,43 +683,12 @@
 	
 	
 	
-	
-	
-	
-	
-	
+
 		// MAIN START
 		beforeOpenOrJoin(function() {
-			var roomId='a';
-			
-			connection.openOrJoin(roomId);
-			
-			connection.socket.on('uploadURL', (data) => {
-				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
-				var contain = document.getElementById('url-server');
-				contain.innerHTML += tagA;
-				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
-			});
-			
-			// STACK URL
-			connection.socket.on('urls', (data) => {
-				data.forEach(function (item, index, array){
-					var tagA = "<a href=" + item + ">" + (index+1) + "_video</a><br/>";
-					var contain = document.getElementById('url-server');
-					contain.innerHTML += tagA;
-					contain.scrollTop = contain.scrollHeight - contain.clientHeight;
-				});
-			});
+			connection.openOrJoin('a');
+			afterOpenOrJoin();
 		});
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		
 		
 		

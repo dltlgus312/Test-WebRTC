@@ -53,6 +53,18 @@ app.get('/records', ( req, res ) => {
 	res.sendfile( 'records.html' );
 });
 
+app.get('/resolution', ( req, res ) => {
+	res.sendfile( 'resolution.html' );
+});
+
+app.get('/facing', ( req, res ) => {
+	res.sendfile( 'facing.html' );
+});
+
+app.get('/device', ( req, res ) => {
+	res.sendfile( 'device.html' );
+});
+
 
 var wstream;
 
