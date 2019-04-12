@@ -38,7 +38,6 @@
 	#chat-contents {width:100%;height:87%;overflow:auto;text-align: left;}
 	#chat {width:80%;height:10%;}
 	#enter {width:10%;height:10%;}
-	
 </style>
 
 
@@ -616,22 +615,26 @@
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
-			connection.resetScreen();
 			navigator.mediaDevices.getDisplayMedia({
 				screen: true
-			}).then(async mediaStream => {
+			}).then(async newStream => {
 				<!-- document.getElementById("screenShare").disabled = true; -->
 				if(!connection.attachStreams[1]){				
-					mediaStream.isScreen = true;
-					myStream(mediaStream, 1);
-					<!-- connection.attachStreams.push(mediaStream); 내부적 푸쉬... -->
-					connection.addStream(mediaStream); // 내부적으로 renenogation 호출
-					multiStreamRecorder.addStream(mediaStream);
+					newStream.isScreen = true;
+					myStream(newStream, 1);
+					<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
+					connection.addStream(newStream); // 내부적으로 renenogation 호출
+					multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
 				}else {
-					stream = connection.attachStreams[1];
-					connection.replaceTrack(stream, mediaStream);
-					stream.addTrack(mediaStream.getTracks()[0]);
-					stream.removeTrack(stream.getVideoTracks()[0]);
+					var stream = connection.attachStreams[1];
+					var oldTrack = stream.getVideoTracks()[0];
+					var newTrack = newStream.getTracks()[0];
+					
+					connection.replaceTrack(stream, newStream);
+					stream.addTrack(newTrack);
+					
+					stream.removeTrack(oldTrack);
+					oldTrack.stop();
 				}
 			});
 		};
