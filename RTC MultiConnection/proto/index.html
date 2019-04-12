@@ -7,7 +7,7 @@
 
 <script src="./node_modules/jquery/dist/jquery.min.js"> </script>
 <script src="./node_modules/msr/MediaStreamRecorder.min.js"></script>
-<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js"></script>
 
 <script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
 <script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
@@ -88,7 +88,7 @@
 
 
 	<script>
-		var connection, permission, mediaRecorder, localRecord;
+		var connection, permission, multiStreamRecorder, localRecord, screenSender;
 		
 		connection = new RTCMultiConnection();
 		
@@ -121,27 +121,11 @@
 			data: true
 		};
 		
-		
-		
-		connection.onRoomFull = function(err) {
-			alert('방이 꽉 찼습니다. \n ERROR : ' + err);
-		};
-		
-		
-		connection.onopen = function(event) {
-			if (designer.pointsLength <= 0) {
-				setTimeout(function() {
-					connection.send('plz-sync-points');
-				}, 1000);
-			}
-		};
-		
-		
 		connection.onstream = function(event) {
 			var container;
 			var screenBtn = document.getElementById("screenShare");
-			if(connection.isInitiator && !mediaRecorder){
-				alert("당신은 방의 주인입니다.");
+			if(connection.isInitiator){
+				<!-- alert("당신은 방의 주인입니다."); -->
 				permission = 'super';
 				screenBtn.disabled = false;
 				screenBtn.innerHTML = '화면공유';
@@ -176,61 +160,85 @@
 						}
 				}
 				
-				if(!mediaRecorder){
-					alert("SERVER 녹화 진행");
+				if(!multiStreamRecorder){
+					<!-- alert("SERVER 녹화 진행"); -->
 					<!-- recorde(); -->
 					multiRecorde();
 				}
 			}				
 		};
 		
-		
-		
-		
-		
-		
-		
-		
+		connection.onstreamended = function(event) {
+			console.log('Peer 연결 해제 : STREAM ID = ' + event.streamid);
+			
+			if(multiStreamRecorder){
+				multiStreamRecorder.stop();
+				multiStreamRecorder = null;			
+			}
+			
+			if (!event.mediaElement) {
+                event.mediaElement = document.getElementById(event.streamid);
+            }
+			
+            if (!event.mediaElement || !event.mediaElement.parentNode) {
+				location.reload();
+                return;
+            }
+			
+            event.mediaElement.parentNode.removeChild(event.mediaElement);
+		}
+
+		connection.onopen = function(event) {
+			if (designer.pointsLength <= 0) {
+				setTimeout(function() {
+					connection.send('plz-sync-points');
+				}, 1000);
+			}
+		};
+			
+		connection.onRoomFull = function(err) {
+			alert('방이 꽉 찼습니다. \n ERROR : ' + err);
+		};
 		
 		
 		
 		
 		
 		// FUNCTIONS
-		function recorde(){
-			var displayStream; 
-			navigator.mediaDevices.getDisplayMedia({video:true})
-			.then((stream)=>{
-				displayStream = stream;
-				connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) {
+		<!-- function recorde(){ -->
+			<!-- var displayStream;  -->
+			<!-- navigator.mediaDevices.getDisplayMedia({video:true}) -->
+			<!-- .then((stream)=>{ -->
+				<!-- displayStream = stream; -->
+				<!-- connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) { -->
 					<!-- 사운드 매핑 -->
-					displayStream.addTrack(videoStream.stream.getAudioTracks()[0]);
-					recording(displayStream);
-				});
-			})
-			.catch((err)=>{
-				if(err instanceof TypeError){
-					alert('에러 : ' + err);
-					recording(displayStream);
-				}else {
-					alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err);
-					recorde();
-				}
+					<!-- displayStream.addTrack(videoStream.stream.getAudioTracks()[0]); -->
+					<!-- recording(displayStream); -->
+				<!-- }); -->
+			<!-- }) -->
+			<!-- .catch((err)=>{ -->
+				<!-- if(err instanceof TypeError){ -->
+					<!-- alert('에러 : ' + err); -->
+					<!-- recording(displayStream); -->
+				<!-- }else { -->
+					<!-- alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err); -->
+					<!-- recorde(); -->
+				<!-- } -->
 				<!-- if(err.constructor === NotAllowedError) NOT WORKING -->
-			});
-		}
+			<!-- }); -->
+		<!-- } -->
 		
-		function recording(stream){
+		<!-- function recording(stream){ -->
 		
-			mediaRecorder = new MediaStreamRecorder(stream);
-			mediaRecorder.mimeType = 'video/mp4;codecs=h264';
+			<!-- mediaRecorder = new MediaStreamRecorder(stream); -->
+			<!-- mediaRecorder.mimeType = 'video/mp4;codecs=h264'; -->
 			
-			mediaRecorder.ondataavailable = function (data) {
-				connection.socket.emit('uploadFile', {data:data});
-			};
+			<!-- mediaRecorder.ondataavailable = function (data) { -->
+				<!-- connection.socket.emit('uploadFile', {data:data}); -->
+			<!-- }; -->
 			
-			mediaRecorder.start(10 * 1000);
-		}
+			<!-- mediaRecorder.start(10 * 1000); -->
+		<!-- } -->
 		
 		
 		
@@ -252,8 +260,8 @@
 			multiStreamRecorder = new MultiStreamRecorder(streams);
 			multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 			
-			multiStreamRecorder.ondataavailable = function (data) {
-				connection.socket.emit('uploadFile', {data:data});
+			multiStreamRecorder.ondataavailable = function (blob) {
+				connection.socket.emit('uploadFile', {data:blob});
 			};
 			
 			multiStreamRecorder.start(5 * 1000);
@@ -432,7 +440,7 @@
 			};
 		
 			navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(str => {
-				connection.replaceTrack(str);
+				connection.replaceTrack(stream, str);
 				stream.addTrack(str.getVideoTracks()[0]);
 				stream.removeTrack(stream.getVideoTracks()[0]);
 			}).catch(err => {
@@ -608,7 +616,7 @@
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
-			connection.resetScreen(); 
+			connection.resetScreen();
 			navigator.mediaDevices.getDisplayMedia({
 				screen: true
 			}).then(async mediaStream => {
@@ -616,10 +624,14 @@
 				if(!connection.attachStreams[1]){				
 					mediaStream.isScreen = true;
 					myStream(mediaStream, 1);
-					connection.attachStreams.push(mediaStream);
-					connection.addStream(mediaStream);				
+					<!-- connection.attachStreams.push(mediaStream); 내부적 푸쉬... -->
+					connection.addStream(mediaStream); // 내부적으로 renenogation 호출
+					multiStreamRecorder.addStream(mediaStream);
 				}else {
-					connection.replaceTrack(mediaStream.getTracks()[0]);
+					stream = connection.attachStreams[1];
+					connection.replaceTrack(stream, mediaStream);
+					stream.addTrack(mediaStream.getTracks()[0]);
+					stream.removeTrack(stream.getVideoTracks()[0]);
 				}
 			});
 		};
@@ -691,35 +703,6 @@
 		});
 		
 		
-		
-		
-		
-		
-			// BROWSER CLOSE EVENT -- NOT WORKING --
-		<!-- connection.onbeforeunload = function() { -->
-			<!-- mediaRecorder.stop(); -->
-			
-			<!-- alert("파일 업로드를 기다려 주세요"); -->
-			
-			<!-- connection.peers.getAllParticipants().forEach(function(participant) { -->
-				<!-- mPeer.onNegotiationNeeded({ -->
-					<!-- userLeft: true -->
-				<!-- }, participant); -->
-
-				<!-- if (connection.peers[participant] && connection.peers[participant].peer) { -->
-					<!-- connection.peers[participant].peer.close(); -->
-				<!-- } -->
-
-				<!-- delete connection.peers[participant]; -->
-			<!-- }); -->
-
-			<!-- connection.attachStreams.forEach(function(stream) { -->
-				<!-- stream.stop(); -->
-			<!-- }); -->
-
-			<!-- connection.closeSocket(); -->
-			<!-- connection.isInitiator = false; -->
-		<!-- }; -->
 	</script>
 
 

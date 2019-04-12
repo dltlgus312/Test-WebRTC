@@ -697,29 +697,32 @@ var RTCMultiConnection = function(roomid, forceOptions) {
 
             connection.peers[remoteUserId] = new PeerInitiator(localConfig);
         };
-
-        this.replaceTrack = function(track, remoteUserId, isVideoTrack) {
+		
+		//##replace
+        this.replaceTrack = function(targetTrack, track, remoteUserId, isVideoTrack) {
             if (!connection.peers[remoteUserId]) {
                 throw 'This peer (' + remoteUserId + ') does not exist.';
             }
 
             var peer = connection.peers[remoteUserId].peer;
 
-            if (!!peer.getSenders && typeof peer.getSenders === 'function' && peer.getSenders().length) {
-                peer.getSenders().forEach(function(rtpSender) {
-                    if (isVideoTrack && rtpSender.track.kind === 'video') {
-                        connection.peers[remoteUserId].peer.lastVideoTrack = rtpSender.track;
-                        rtpSender.replaceTrack(track);
-                    }
+			if (!!peer.getSenders && typeof peer.getSenders === 'function' && peer.getSenders().length) {
+				peer.getSenders().forEach(function(rtpSender) {
+					if(targetTrack.id === rtpSender.track.id){
+						if (isVideoTrack && rtpSender.track.kind === 'video') {
+							connection.peers[remoteUserId].peer.lastVideoTrack = rtpSender.track;
+							rtpSender.replaceTrack(track);
+						}
 
-                    if (!isVideoTrack && rtpSender.track.kind === 'audio') {
-                        connection.peers[remoteUserId].peer.lastAudioTrack = rtpSender.track;
-                        rtpSender.replaceTrack(track);
-                    }
-                });
-                return;
-            }
-
+						if (!isVideoTrack && rtpSender.track.kind === 'audio') {
+							connection.peers[remoteUserId].peer.lastAudioTrack = rtpSender.track;
+							rtpSender.replaceTrack(track);
+						}	
+					}
+				});
+				return;
+			}
+			
             console.warn('RTPSender.replaceTrack is NOT supported.');
             this.renegotiatePeer(remoteUserId);
         };
@@ -4652,6 +4655,8 @@ var RTCMultiConnection = function(roomid, forceOptions) {
 
                 if (isRoomJoined === false) {
                     if (connection.enableLogs) {
+						
+						//##roomfull
 						connection.onRoomFull(error);
                         console.warn('isRoomJoined: ', error, ' roomid: ', connection.sessionid);
                     }
@@ -5396,38 +5401,50 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 applyConstraints(stream, mediaConstraints);
             });
         };
-
-        function replaceTrack(track, remoteUserId, isVideoTrack) {
+		
+		//##replace
+        function replaceTrack(target, track, remoteUserId, isVideoTrack) {
             if (remoteUserId) {
-                mPeer.replaceTrack(track, remoteUserId, isVideoTrack);
+                mPeer.replaceTrack(target, track, remoteUserId, isVideoTrack);
                 return;
             }
 
             connection.peers.getAllParticipants().forEach(function(participant) {
-                mPeer.replaceTrack(track, participant, isVideoTrack);
+                mPeer.replaceTrack(target, track, participant, isVideoTrack);
             });
         }
-
-        connection.replaceTrack = function(session, remoteUserId, isVideoTrack) {
+		
+		//##replace
+        connection.replaceTrack = function(target, session, remoteUserId, isVideoTrack) {
             session = session || {};
+			
+			if ( target && target instanceof MediaStream){
+				if (getTracks(target, 'video').length) {
+                    target = getTracks(target, 'video')[0];
+                }
 
+                if (getTracks(target, 'audio').length) {
+                    target = getTracks(target, 'audio')[0];
+                }
+			}
+			
             if (!RTCPeerConnection.prototype.getSenders) {
                 connection.addStream(session);
                 return;
             }
 
             if (session instanceof MediaStreamTrack) {
-                replaceTrack(session, remoteUserId, isVideoTrack);
+                replaceTrack(target, session, remoteUserId, isVideoTrack);
                 return;
             }
 
             if (session instanceof MediaStream) {
                 if (getTracks(session, 'video').length) {
-                    replaceTrack(getTracks(session, 'video')[0], remoteUserId, true);
+                    replaceTrack(target, getTracks(session, 'video')[0], remoteUserId, true);
                 }
 
                 if (getTracks(session, 'audio').length) {
-                    replaceTrack(getTracks(session, 'audio')[0], remoteUserId, false);
+                    replaceTrack(target, getTracks(session, 'audio')[0], remoteUserId, false);
                 }
                 return;
             }
@@ -5472,9 +5489,10 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                     connection.invokeGetUserMedia(null, gumCallback);
                 }
             }
-
+			
+			//##replace
             function gumCallback(stream) {
-                connection.replaceTrack(stream, remoteUserId, isVideoTrack || session.video || session.screen);
+                connection.replaceTrack(target, stream, remoteUserId, isVideoTrack || session.video || session.screen);
             }
         };
 
@@ -5491,11 +5509,11 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 var peer = connection.peers[participant].peer;
 
                 if ((typeof isVideoTrack === 'undefined' || isVideoTrack === true) && peer.lastVideoTrack) {
-                    connection.replaceTrack(peer.lastVideoTrack, participant, true);
+                    connection.replaceTrack(null, peer.lastVideoTrack, participant, true);
                 }
 
                 if ((typeof isVideoTrack === 'undefined' || isVideoTrack === false) && peer.lastAudioTrack) {
-                    connection.replaceTrack(peer.lastAudioTrack, participant, false);
+                    connection.replaceTrack(null, peer.lastAudioTrack, participant, false);
                 }
             });
         };

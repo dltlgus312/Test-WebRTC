@@ -42,13 +42,17 @@ io.on( 'connection', ( socket ) => {
 	socket.emit('urls', stackUrl);
 	
 	
+	socket.on('disconnect', (data) => {
+		console.log("DISCONNECTION USER");
+	});
+	
 	socket.on('uploadFile', (data) => {
 		console.log("STREAM DATA COMMING");			
 		wstream = fs.createWriteStream( __dirname + "/temp/" + cnt + ".mp4" );
 		wstream.write(data.data);
 		wstream.end();
 		
-		var url = 'https://211.44.246.219/temp/' + cnt + '.mp4';	
+		var url = 'https://192.168.50.210/temp/' + cnt + '.mp4';	
 		
 		io.emit('uploadURL', {url: url, cnt: cnt});
 		stackUrl.push(url);
