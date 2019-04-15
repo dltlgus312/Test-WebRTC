@@ -43,6 +43,7 @@
 	function beforeOpenOrJoin(callback) {
 		var videoConstraints = {
 			deviceId: window.deviceId ? { exact: window.deviceId } : null,
+			<!-- facingMode: 'environment' -->
 		};
 		
 		navigator.mediaDevices.getUserMedia({

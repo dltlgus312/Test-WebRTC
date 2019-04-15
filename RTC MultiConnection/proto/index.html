@@ -319,7 +319,7 @@
 				navigator.mediaDevices.getUserMedia({
 					video: videoConstraints
 				}).then(async mediaStream => {
-				
+					mediaStream.getVideoTracks()[0].onended = function () { alert("트랙 끊김...."); }
 					navigator.mediaDevices.getUserMedia({
 						audio: {
 							echoCancellation: true
@@ -685,7 +685,13 @@
 		document.getElementById('facingMode').onclick = function (event){
 			connection.mediaConstraints.video.optional.forEach( option => {
 				if(option.facingMode == 'user'){
-					connection.applyConstraints({video :{facingMode : {exact : 'environment'}}});
+					connection.applyConstraints({
+						video :{ facingMode : {exact : 'environment'} }
+					});
+				}else {
+					connection.applyConstraints({
+						video :{ facingMode : {exact : 'user'} }
+					});
 				}
 			});			
 		}

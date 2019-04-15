@@ -52,7 +52,7 @@ io.on( 'connection', ( socket ) => {
 		wstream.write(data.data);
 		wstream.end();
 		
-		var url = 'https://192.168.50.210/temp/' + cnt + '.mp4';	
+		var url = '/temp/' + cnt + '.mp4';	
 		
 		io.emit('uploadURL', {url: url, cnt: cnt});
 		stackUrl.push(url);
