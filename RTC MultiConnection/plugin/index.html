@@ -23,11 +23,9 @@
 					callback(screenStream);
 				});
 			} else {
-				console.log("1");
 				getScreenId(function(err, sourceId, screen_constraints) {
 					console.log(err, sourceId, screen_constraints);
 					navigator.mediaDevices.getUserMedia(screen_constraints).then(function(screenStream) {
-						console.log("b");
 						callback(screenStream);
 					});
 				});
