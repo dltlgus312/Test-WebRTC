@@ -244,6 +244,17 @@
 			}
 		}
 		
+		function screenMediaSetting(){
+			if(!navigator.mediaDevices.getDisplayMedia){
+				getScreenId(function(err, sourceId, screen_constraints) {
+					<!-- console.log(err, sourceId, screen_constraints); -->
+					<!-- navigator.mediaDevices.getUserMedia(screen_constraints).then(function(screenStream) { -->
+						<!-- callback(screenStream); -->
+					<!-- }); -->
+				});
+			}
+		}
+		
 		<!-- function recorde(){ -->
 			<!-- var displayStream;  -->
 			<!-- navigator.mediaDevices.getDisplayMedia({video:true}) -->
@@ -410,7 +421,7 @@
 			navigator.mediaDevices.ondevicechange = function (event){
 				changeDevice(connection.attachStreams[0]);
 				deviceSelector();
-			} 
+			}
 			
 			
 			connection.socket.on('uploadURL', function(data){
@@ -672,44 +683,41 @@
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
-			if(navigator.mediaDevices.getDisplayMedia){
-					navigator.mediaDevices.getDisplayMedia({
-					screen: true
-				<!-- async  -->
-				}).then(function(newStream){
-					// 공유 종료 버튼 클릭시....
-					newStream.oninactive = function(event){
-						console.log(event);
-						<!-- connection.send({inactive:true, streamid : event.srcElement.streamid}); -->
-					}
-
-					if(!connection.attachStreams[1]){
-						newStream.isScreen = true;
-						myStream(newStream, 1);
-						
-						<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
-						connection.addStream(newStream); // 내부적으로 renenogation(재협상)
-						multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
-					}else {
-						var stream = connection.attachStreams[1];
-						var oldTrack = stream.getVideoTracks()[0];
-						var newTrack = newStream.getTracks()[0];
-						
-						connection.replaceTrack(stream, newStream);
-						stream.addTrack(newTrack);
-						
-						stream.removeTrack(oldTrack);
-						oldTrack.stop();
-					}
-				}).catch(function(err){
-					alert(err);
-				});
-			}
 		
-			// ## 스크린 공유 플러그인 회유
-			<!-- alert(DetectRTC.screen.getChromeExtensionStatus); -->
-			<!-- DetectRTC.screen.getChromeExtensionStatus(function(data){alert(data);}); -->
-			
+			// ## PLUGIN SETTING TEST
+			screenMediaSetting();
+		
+			navigator.mediaDevices.getDisplayMedia({
+				screen: true
+			<!-- async  -->
+			}).then(function(newStream){
+				// 공유 종료 버튼 클릭시....
+				newStream.oninactive = function(event){
+					console.log(event);
+					<!-- connection.send({inactive:true, streamid : event.srcElement.streamid}); -->
+				}
+
+				if(!connection.attachStreams[1]){
+					newStream.isScreen = true;
+					myStream(newStream, 1);
+					
+					<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
+					connection.addStream(newStream); // 내부적으로 renenogation(재협상)
+					multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
+				}else {
+					var stream = connection.attachStreams[1];
+					var oldTrack = stream.getVideoTracks()[0];
+					var newTrack = newStream.getTracks()[0];
+					
+					connection.replaceTrack(stream, newStream);
+					stream.addTrack(newTrack);
+					
+					stream.removeTrack(oldTrack);
+					oldTrack.stop();
+				}
+			}).catch(function(err){
+				alert(err);
+			});
 		};
 		
 		document.getElementById("videoRecorde").onclick = function (){
