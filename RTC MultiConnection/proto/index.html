@@ -5,14 +5,16 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-<script src="./node_modules/jquery/dist/jquery.min.js"> </script>
-<script src="./node_modules/msr/MediaStreamRecorder.min.js"></script>
+<script src="/node_modules/jquery/dist/jquery.min.js"> </script>
+<script src="/node_modules/msr/MediaStreamRecorder.min.js"></script>
 <script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js"></script>
 
+<script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
 <script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
 <script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 
+<script src="/node_modules/webrtc-screen-capturing/getScreenId.js"></script>
 
 
 <style>
@@ -102,22 +104,22 @@
 			tcp: true
 		};
 		
-		<!-- connection.iceServers = []; -->
+		connection.iceServers = [];
 		
-		<!-- connection.iceServers.push({ -->
-			<!-- urls: 'stun:192.168.25.4:3478' -->
-		<!-- }); -->
+		connection.iceServers.push({
+			urls: 'stun:192.168.25.4:3478'
+		});
 
-		<!-- connection.iceServers.push({ -->
-			<!-- url: 'turn:211.44.246.219:3478?transport=tcp', -->
-			<!-- credential: 'test', -->
-			<!-- username: 'test' -->
-		<!-- }); -->
+		connection.iceServers.push({
+			urls: 'turn:211.44.246.219:3478?transport=tcp',
+			credential: 'test',
+			username: 'test'
+		});
 		
 		connection.session = {
 			audio: true,
 			video: true,
-			data: true
+			data : true
 		};
 		
 		connection.onstream = function(event) {
@@ -135,6 +137,7 @@
 			}
 		
 			if(event.stream.isScreen){
+				// ## ended >> src = ''
 				document.getElementById("screenShare").disabled = true;
 				container = document.getElementById('screen-container');
 				container.innerHTML  = "";
@@ -158,34 +161,18 @@
 							connection.send({streamOpen : true, id : event.mediaElement.id});
 						}
 				}
-				
 				if(!multiStreamRecorder){
 					<!-- alert("SERVER 녹화 진행"); -->
 					<!-- recorde(); -->
-					multiRecorde();
+					if(window.MediaRecorder !== undefined) {
+						multiRecorde();
+					}else {					
+						alert('녹화가 불가능한 브라우저 입니다.');
+					}
 				}
 			}				
 		};
 		
-		connection.onstreamended = function(event) {
-			console.log('Peer 연결 해제 : STREAM ID = ' + event.streamid);
-			
-			if(multiStreamRecorder){
-				multiStreamRecorder.stop();
-				multiStreamRecorder = null;			
-			}
-			
-			if (!event.mediaElement) {
-                event.mediaElement = document.getElementById(event.streamid);
-            }
-			
-            if (!event.mediaElement || !event.mediaElement.parentNode) {
-				location.reload();
-                return;
-            }
-			
-            event.mediaElement.parentNode.removeChild(event.mediaElement);
-		}
 
 		connection.onopen = function(event) {
 			if (designer.pointsLength <= 0) {
@@ -201,13 +188,66 @@
 		
 		
 		
+		// Remote Peer 끊어지기 전....
+		connection.onleave = function(event){
+			// event.userid, event.extra // 한번 호출
+		}
+		
+		// Peer 끊어진 후....
+		connection.onstreamended = function(event) {
+			// stream, streamid, type, userid, extra, mediaElem // 스트림 마다 각각 호출
+			if (!event.mediaElement) {
+				event.mediaElement = document.getElementById(event.streamid);
+			}
+			
+			if (!event.mediaElement || !event.mediaElement.parentNode) {
+				location.reload();
+				return;
+			}
+			
+			event.mediaElement.parentNode.removeChild(event.mediaElement);
+		};
+		
+		
+		
 		
 		
 		// FUNCTIONS
+		function error(err, isAudio){
+			console.log("에러 : " + err); 
+			if(err.name == 'AbortError'){
+				alert("카메라가 다른 장치에서 이미 사용 중 입니다.");
+			}else if(err.name == 'NotAllowedError'){
+				alert("카메라에 대한 권한을 해제 후 사용가능 합니다.");
+			}else if(err.name == 'NotFoundError'){
+				if(isAudio){
+					alert("연결 가능한 오디오가 없습니다.");
+				}else {
+					alert("연결 가능한 카메라가 없습니다.");
+				}
+			}else if(err.name == 'NotReadableError'){
+				alert("알수없는 오류가 발생했습니다.");
+			}else if(err.name == 'SecurityError'){
+				alert("HTTP 연결 에러 추정");
+			}else if(err.name == 'TypeError'){ 
+				alert("모든제약조건이 false 이거나 제약 조건이 비어있음");
+			}else {
+				alert(err);
+			}
+		}
+		
+		function userMediaSetting(){
+			if( navigator.getUserMedia ){
+				navigator.mediaDevices = navigator;
+			} else if(navigator.mediaDevices){
+				navigator.mediaDevices = navigator.mediaDevices;
+			}
+		}
+		
 		<!-- function recorde(){ -->
 			<!-- var displayStream;  -->
 			<!-- navigator.mediaDevices.getDisplayMedia({video:true}) -->
-			<!-- .then((stream)=>{ -->
+			<!-- .then(function(stream){ -->
 				<!-- displayStream = stream; -->
 				<!-- connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) { -->
 					<!-- 사운드 매핑 -->
@@ -215,7 +255,7 @@
 					<!-- recording(displayStream); -->
 				<!-- }); -->
 			<!-- }) -->
-			<!-- .catch((err)=>{ -->
+			<!-- .catch(function(err){ -->
 				<!-- if(err instanceof TypeError){ -->
 					<!-- alert('에러 : ' + err); -->
 					<!-- recording(displayStream); -->
@@ -238,7 +278,6 @@
 			
 			<!-- mediaRecorder.start(10 * 1000); -->
 		<!-- } -->
-		
 		
 		
 		function multiRecorde(){
@@ -273,8 +312,13 @@
 			var video = document.getElementById(stream.id);
 			
 			<!-- var options = {mimeType: 'video/webm;codecs=vp9'}; 제한적 지원.. -->
-			<!-- var options = {mimeType: 'video/mp4;codecs=h264'}; 지원 안함.. -->
-			<!-- localRecord = new MediaRecorder(stream, options); FireFox ( options ) 에러.. -->
+			var options = {mimeType: 'video/mp4;codecs=h264'};
+			
+			if(connection.DetectRTC.browser.name === 'Firefox'){
+				localRecord = new MediaRecorder(stream);
+			}else {
+				localRecord = new MediaRecorder(stream, options);			
+			}
 			
 			localRecord = new MediaRecorder(stream);
 				
@@ -304,27 +348,37 @@
 		}
 		
 		
-
-
+	
+	
 
 		function beforeOpenOrJoin(callback) {
+			userMediaSetting();
 		
-			findHighResolution(width => {
-				// 16 : 9 Ratio Resolution
-				var videoConstraints = {
-					width: { exact : width },
-					height: { exact : width/16*9 }
-				};
-				
+			findHighResolution(function(width){
+				// 16 : 9 Ratio Resolution ......
+				var videoConstraints;
+				if(connection.DetectRTC.browser.name === 'Firefox' || connection.DetectRTC.browser.name === 'Edge' ){
+					videoConstraints = {
+						width: width,
+						height: width/16*9
+					};				
+				}else {
+					videoConstraints = {
+						width: { exact : width },
+						height: { exact : width/16*9 }
+					};				
+				}
+
 				navigator.mediaDevices.getUserMedia({
 					video: videoConstraints
-				}).then(async mediaStream => {
-					mediaStream.getVideoTracks()[0].onended = function () { alert("트랙 끊김...."); }
+					<!-- async  -->
+				}).then(function(mediaStream){
 					navigator.mediaDevices.getUserMedia({
 						audio: {
 							echoCancellation: true
 						}
-					}).then(async audioStream => {
+					<!-- async  -->
+					}).then(function(audioStream){
 						
 						mediaStream.addTrack(audioStream.getAudioTracks()[0]);
 						
@@ -333,23 +387,22 @@
 						callback();
 					
 					}).catch(function(err){
-					
-						alert("오디오를 확인해주세요");
+						error(err, true);
 						myStream(mediaStream);
 						connection.attachStreams = [mediaStream];
 						callback();
-					
 					});
-				}).catch(function(err) {
-					console.log(err);
-					alert("카메라를 확인해주세요.");
-				});
+				}).catch(error);
 			});
 		}
 		
 		function afterOpenOrJoin(){
 			
-			deviceSelector();
+			if(connection.DetectRTC.browser.name === 'Firefox'){
+			
+			}else {			
+				deviceSelector();
+			}
 			
 			resolutionSelector();
 			
@@ -360,7 +413,7 @@
 			} 
 			
 			
-			connection.socket.on('uploadURL', (data) => {
+			connection.socket.on('uploadURL', function(data){
 				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
 				var contain = document.getElementById('url-server');
 				contain.innerHTML += tagA;
@@ -368,7 +421,7 @@
 			});
 			
 			// STACK URL
-			connection.socket.on('urls', (data) => {
+			connection.socket.on('urls', function(data){
 				data.forEach(function (item, index, array){
 					var tagA = "<a href=" + item + ">" + (index+1) + "_video</a><br/>";
 					var contain = document.getElementById('url-server');
@@ -383,7 +436,7 @@
 		// Devices LIST
 		function deviceSelector(){
 			
-			navigator.mediaDevices.enumerateDevices().then((devices) => {
+			navigator.mediaDevices.enumerateDevices().then(function(devices){
 				
 				var select = document.getElementById('deviceSelect');
 				select.innerHTML = '';
@@ -408,13 +461,13 @@
 					<!-- 오디오 출력 변경시...???? 검증 필요 -->
 					<!-- var video = document.getElementById(stream.id); -->
 					<!-- if (typeof video.sinkId !== 'undefined') { -->
-						<!-- video.setSinkId(audioDev.value).then().catch(err => {console.log(err);}); -->
+						<!-- video.setSinkId(audioDev.value).then().catch(function(err){console.log(err);}); -->
 					<!-- }else { -->
 						<!-- alert("not support"); -->
 					<!-- } -->
 				}
 				
-			}).catch(err => {
+			}).catch(function(err){
 				console.log(err);
 			});
 		}
@@ -430,21 +483,25 @@
 		}
 		
 		
-		function changeDevice(stream, deviceId){
-			var width = stream.getVideoTracks()[0].getSettings().width;
-			var videoConstraints = {
-				deviceId: deviceId ? { exact: deviceId } : null,
-				width: width ,
-				height: width/16*9
-			};
-		
-			navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(str => {
-				connection.replaceTrack(stream, str);
-				stream.addTrack(str.getVideoTracks()[0]);
-				stream.removeTrack(stream.getVideoTracks()[0]);
-			}).catch(err => {
-				alert(err);
-			});
+		function changeDevice(stream, deviceId, isAudio){
+			//## Audio Change 
+			if(isAudio){
+				
+			}else {
+				
+				var width = stream.getVideoTracks()[0].getSettings().width;
+				var videoConstraints = {
+					deviceId: deviceId ? { exact: deviceId } : null,
+					width: width ,
+					height: width/16*9
+				};
+				
+				navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(function(str){
+					connection.replaceTrack(stream, str);
+					stream.addTrack(str.getVideoTracks()[0]);
+					stream.removeTrack(stream.getVideoTracks()[0]);
+				}).catch(error);			
+			}
 		}
 		
 		
@@ -456,9 +513,9 @@
 			};
 			
 			navigator.mediaDevices.getUserMedia({ video: videoConstraints })
-				.then(stream => {
-					callback(stream.getVideoTracks()[0].getSettings().width)
-				}).catch(err => {alert(err);});
+			.then(function(stream){
+				callback(stream.getVideoTracks()[0].getSettings().width)
+			}).catch(error);
 		}
 		
 		
@@ -615,28 +672,44 @@
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
-			navigator.mediaDevices.getDisplayMedia({
-				screen: true
-			}).then(async newStream => {
-				<!-- document.getElementById("screenShare").disabled = true; -->
-				if(!connection.attachStreams[1]){				
-					newStream.isScreen = true;
-					myStream(newStream, 1);
-					<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
-					connection.addStream(newStream); // 내부적으로 renenogation 호출
-					multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
-				}else {
-					var stream = connection.attachStreams[1];
-					var oldTrack = stream.getVideoTracks()[0];
-					var newTrack = newStream.getTracks()[0];
-					
-					connection.replaceTrack(stream, newStream);
-					stream.addTrack(newTrack);
-					
-					stream.removeTrack(oldTrack);
-					oldTrack.stop();
-				}
-			});
+			if(navigator.mediaDevices.getDisplayMedia){
+					navigator.mediaDevices.getDisplayMedia({
+					screen: true
+				<!-- async  -->
+				}).then(function(newStream){
+					// 공유 종료 버튼 클릭시....
+					newStream.oninactive = function(event){
+						console.log(event);
+						<!-- connection.send({inactive:true, streamid : event.srcElement.streamid}); -->
+					}
+
+					if(!connection.attachStreams[1]){
+						newStream.isScreen = true;
+						myStream(newStream, 1);
+						
+						<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
+						connection.addStream(newStream); // 내부적으로 renenogation(재협상)
+						multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
+					}else {
+						var stream = connection.attachStreams[1];
+						var oldTrack = stream.getVideoTracks()[0];
+						var newTrack = newStream.getTracks()[0];
+						
+						connection.replaceTrack(stream, newStream);
+						stream.addTrack(newTrack);
+						
+						stream.removeTrack(oldTrack);
+						oldTrack.stop();
+					}
+				}).catch(function(err){
+					alert(err);
+				});
+			}
+		
+			// ## 스크린 공유 플러그인 회유
+			<!-- alert(DetectRTC.screen.getChromeExtensionStatus); -->
+			<!-- DetectRTC.screen.getChromeExtensionStatus(function(data){alert(data);}); -->
+			
 		};
 		
 		document.getElementById("videoRecorde").onclick = function (){
@@ -683,7 +756,7 @@
 		}
 		
 		document.getElementById('facingMode').onclick = function (event){
-			connection.mediaConstraints.video.optional.forEach( option => {
+			connection.mediaConstraints.video.optional.forEach(function(option){
 				if(option.facingMode == 'user'){
 					connection.applyConstraints({
 						video :{ facingMode : {exact : 'environment'} }

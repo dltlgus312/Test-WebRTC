@@ -48,18 +48,18 @@ io.on( 'connection', ( socket ) => {
 	
 	socket.on('uploadFile', (data) => {
 		console.log("STREAM DATA COMMING");			
-		wstream = fs.createWriteStream( __dirname + "/temp/" + cnt + ".mp4" );
-		wstream.write(data.data);
-		wstream.end();
+		// wstream = fs.createWriteStream( __dirname + "/temp/" + cnt + ".mp4" );
+		// wstream.write(data.data);
+		// wstream.end();
 		
-		var url = '/temp/' + cnt + '.mp4';	
+		// var url = '/temp/' + cnt + '.mp4';	
 		
-		io.emit('uploadURL', {url: url, cnt: cnt});
-		stackUrl.push(url);
+		// io.emit('uploadURL', {url: url, cnt: cnt});
+		// stackUrl.push(url);
 		
-		console.log(url);
+		// console.log(url);
 		
-		cnt += 1;
+		// cnt += 1;
 	});
 });
 
