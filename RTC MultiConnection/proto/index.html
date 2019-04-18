@@ -244,16 +244,7 @@
 			}
 		}
 		
-		function screenMediaSetting(){
-			if(!navigator.mediaDevices.getDisplayMedia){
-				getScreenId(function(err, sourceId, screen_constraints) {
-					<!-- console.log(err, sourceId, screen_constraints); -->
-					<!-- navigator.mediaDevices.getUserMedia(screen_constraints).then(function(screenStream) { -->
-						<!-- callback(screenStream); -->
-					<!-- }); -->
-				});
-			}
-		}
+	
 		
 		<!-- function recorde(){ -->
 			<!-- var displayStream;  -->
@@ -677,20 +668,46 @@
 		
 		
 		
-		
+		function screenMediaSetting(callback){
+			if(navigator.mediaDevices.getDisplayMedia){
+				navigator.mediaDevices.getDisplayMedia({
+					screen: true
+				}).then(function(stream){
+					callback(stream)
+				}).catch(function(err){
+					console.log(err);
+				});
+			}else {			
+				getScreenId(function(err, sourceId, constraints) {
+					console.log(err, sourceId, constraints);
+					navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+						callback(stream);
+					});
+				});
+				
+				// ## TEST
+				<!-- var constraints = { -->
+					<!-- video: { -->
+						<!-- mandatory: { -->
+							<!-- chromeMediaSource: "desktop", -->
+							<!-- chromeMediaSourceId: "TFm/P8PDVo+gxRs5bdwneA==", -->
+							<!-- maxHeight: 1080, -->
+							<!-- maxWidth: 1920 -->
+						<!-- } -->
+					<!-- } -->
+				<!-- } -->
+				<!-- navigator.mediaDevices.getUserMedia(constraints).then(async stream => { -->
+						<!-- callback(stream); -->
+				<!-- }); -->
+			}
+		}
 		
 		
 		
 		// USER EVENT 
 		document.getElementById("screenShare").onclick = function (){
-		
 			// ## PLUGIN SETTING TEST
-			screenMediaSetting();
-		
-			navigator.mediaDevices.getDisplayMedia({
-				screen: true
-			<!-- async  -->
-			}).then(function(newStream){
+			screenMediaSetting(function(newStream){
 				// 공유 종료 버튼 클릭시....
 				newStream.oninactive = function(event){
 					console.log(event);
@@ -715,8 +732,6 @@
 					stream.removeTrack(oldTrack);
 					oldTrack.stop();
 				}
-			}).catch(function(err){
-				alert(err);
 			});
 		};
 		
