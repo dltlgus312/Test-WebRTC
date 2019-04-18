@@ -65,6 +65,10 @@ app.get('/device', ( req, res ) => {
 	res.sendfile( 'device.html' );
 });
 
+app.get('/electron', ( req, res ) => {
+	res.sendfile( 'electron.html' );
+});
+
 
 var wstream;
 
@@ -82,21 +86,21 @@ io.on( 'connection', ( socket ) => {
 	
 	
 	socket.on('uploadStart', (data) => {
-		wstream = fs.createWriteStream( __dirname + '/temp/test.webm', 'utf8');
+		wstream = fs.createWriteStream( __dirname + '/temp/test.webm');
 	});
 	
 	socket.on('uploadFile', (data) => {
 		
-		wstream.write(data.data, 'utf8');
+		// wstream.write(data.data);
 		
-		if(!data.lastData){
-			console.log("STREAM DATA COMMING");			
-		}else {
-			if(wstream){
-				console.log("===== DATA END & CLOSE =====");
-				wstream.end();
-			}
-		}
+		// if(!data.lastData){
+			// console.log("STREAM DATA COMMING");			
+		// }else {
+			// if(wstream){
+				// console.log("===== DATA END & CLOSE =====");
+				// wstream.end();
+			// }
+		// }
 	});
 });
 

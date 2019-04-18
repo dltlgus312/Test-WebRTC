@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.min.js"></script>
+
+<script>
+
+	const { desktopCapturer } = require('electron')
+
+	desktopCapturer.getSources({ types: ['window', 'screen'] }, (error, sources) => {
+	  if (error) throw error
+	  for (let i = 0; i < sources.length; ++i) {
+		if (sources[i].name === 'Electron') {
+		  navigator.mediaDevices.getUserMedia({
+			audio: false,
+			video: {
+			  mandatory: {
+				chromeMediaSource: 'desktop',
+				chromeMediaSourceId: sources[i].id,
+				minWidth: 1280,
+				maxWidth: 1280,
+				minHeight: 720,
+				maxHeight: 720
+			  }
+			}
+		  }).then((stream) => handleStream(stream))
+			.catch((e) => handleError(e))
+		  return
+		}
+	  }
+	})
+
+	function handleStream (stream) {
+	  const video = document.querySelector('video')
+	  video.srcObject = stream
+	  video.onloadedmetadata = (e) => video.play()
+	}
+
+	function handleError (e) {
+	  console.log(e)
+	}
+</script>
+
+</head>
+<body>
+	<input type="text" id="room-id" value="abcdef">
+
+	<button id="open-room">Open Room</button>
+	<button id="join-room">Join Room</button>
+	<div id="videos-container"></div>
+
+
+
+	<script>
+		document.getElementById('open-room').onclick = function() {
+			beforeOpenOrJoin(function() {
+				connection.open(document.getElementById('room-id').value);
+			});
+		};
+		document.getElementById('join-room').onclick = function() {
+			beforeOpenOrJoin(function() {
+				connection.join(document.getElementById('room-id').value);
+			});
+		};
+	</script>
+
+
+
+</body>
+
+</html>

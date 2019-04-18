@@ -12,10 +12,9 @@
 <script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
 <script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
 <script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
+
 <script src="/socket.io/socket.io.js"></script>
-
 <script src="/node_modules/webrtc-screen-capturing/getScreenId.js"></script>
-
 
 <style>
 	html { height: 100%;}
@@ -119,7 +118,7 @@
 		connection.session = {
 			audio: true,
 			video: true,
-			data : true
+			<!-- data : true -->
 		};
 		
 		connection.onstream = function(event) {
@@ -313,16 +312,14 @@
 			var stream = connection.attachStreams[0];
 			var video = document.getElementById(stream.id);
 			
-			<!-- var options = {mimeType: 'video/webm;codecs=vp9'}; 제한적 지원.. -->
-			var options = {mimeType: 'video/mp4;codecs=h264'};
+			var options = {mimeType: 'video/webm;codecs=vp9'}; 
+			<!-- var options = {mimeType: 'video/mp4;codecs=h264'}; mp4 not working -->
 			
 			if(connection.DetectRTC.browser.name === 'Firefox'){
 				localRecord = new MediaRecorder(stream);
 			}else {
-				localRecord = new MediaRecorder(stream, options);			
+				localRecord = new MediaRecorder(stream, options);
 			}
-			
-			localRecord = new MediaRecorder(stream);
 				
 			localRecord.ondataavailable = function(e) {
 				console.log("녹화 중지 : DATA SAVE");
@@ -670,9 +667,9 @@
 		
 		function screenMediaSetting(callback){
 			if(navigator.mediaDevices.getDisplayMedia){
-				navigator.mediaDevices.getDisplayMedia({
-					screen: true
-				}).then(function(stream){
+				navigator.mediaDevices.getDisplayMedia(
+				<!-- { screen: true } -->
+				).then(function(stream){
 					callback(stream)
 				}).catch(function(err){
 					console.log(err);
