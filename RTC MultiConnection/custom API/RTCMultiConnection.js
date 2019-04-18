@@ -345,7 +345,6 @@ var RTCMultiConnection = function(roomid, forceOptions) {
 
                 return;
             }
-
             mPeer.addNegotiatedMessage(message.message, message.sender);
         }
 
@@ -698,7 +697,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
             connection.peers[remoteUserId] = new PeerInitiator(localConfig);
         };
 		
-		//##replace
+		// ## replace
         this.replaceTrack = function(targetTrack, track, remoteUserId, isVideoTrack) {
             if (!connection.peers[remoteUserId]) {
                 throw 'This peer (' + remoteUserId + ') does not exist.';
@@ -730,7 +729,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
         this.onNegotiationNeeded = function(message, remoteUserId) {};
         this.addNegotiatedMessage = function(message, remoteUserId) {
             if (message.type && message.sdp) {
-                if (message.type == 'answer') {
+				if (message.type == 'answer') {
                     if (connection.peers[remoteUserId]) {
                         connection.peers[remoteUserId].addRemoteSdp(message);
                     }
@@ -2537,9 +2536,11 @@ var RTCMultiConnection = function(roomid, forceOptions) {
 
             try {
                 // ref: developer.mozilla.org/en-US/docs/Web/API/RTCConfiguration
+				// ## SDP Plan Force Change ( 'plan-b' )
                 var params = {
                     iceServers: connection.iceServers,
-                    iceTransportPolicy: connection.iceTransportPolicy || iceTransports
+                    iceTransportPolicy: connection.iceTransportPolicy || iceTransports,
+					sdpSemantics : 'unified-plan'
                 };
 
                 if (typeof connection.iceCandidatePoolSize !== 'undefined') {
@@ -2555,7 +2556,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 }
 
                 if (DetectRTC.browser.name === 'Chrome') {
-                    params.sdpSemantics = connection.sdpSemantics || 'unified-plan';
+                    // params.sdpSemantics = connection.sdpSemantics || 'unified-plan';
                 }
 
                 if (!connection.iceServers || !connection.iceServers.length) {
@@ -2566,11 +2567,13 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 peer = new RTCPeerConnection(params, connection.optionalArgument);
             } catch (e) {
                 try {
+					// ## SDP Plan Force Change ( 'plan-b' )
                     var params = {
-                        iceServers: connection.iceServers
+                        iceServers: connection.iceServers,
+						sdpSemantics : 'unified-plan'
                     };
-
-                    peer = new RTCPeerConnection(params);
+					
+					peer = new RTCPeerConnection(params);
                 } catch (e) {
                     peer = new RTCPeerConnection();
                 }
@@ -4520,8 +4523,16 @@ var RTCMultiConnection = function(roomid, forceOptions) {
             connection.onleave(eventObject);
 
             if (!!connection.peers[remoteUserId]) {
-                connection.peers[remoteUserId].streams.forEach(function(stream) {
-                    stream.stop();
+				
+                // connection.peers[remoteUserId].streams.forEach(function(stream) {
+                    // stream.stop();
+                // });
+				
+				// ## user remote stream all remove
+                connection.streamEvents.selectAll({
+					userid: remoteUserId
+				}).forEach(function(event) {
+                    event.stream.getTracks().forEach(function(track){ track.stop() });
                 });
 
                 var peer = connection.peers[remoteUserId].peer;
@@ -4656,7 +4667,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 if (isRoomJoined === false) {
                     if (connection.enableLogs) {
 						
-						//##roomfull
+						//## full room
 						connection.onRoomFull(error);
                         console.warn('isRoomJoined: ', error, ' roomid: ', connection.sessionid);
                     }
@@ -4908,8 +4919,9 @@ var RTCMultiConnection = function(roomid, forceOptions) {
 
         connection.processSdp = function(sdp) {
             // ignore SDP modification if unified-pan is supported
+			// ## "unified-plan" If Failed  SDP > Convert To plan-b OR unified-plan
             if (isUnifiedPlanSupportedDefault()) {
-                return sdp;
+				return sdp;
             }
 
             if (DetectRTC.browser.name === 'Safari') {
@@ -5402,7 +5414,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
             });
         };
 		
-		//##replace
+		// ## replace
         function replaceTrack(target, track, remoteUserId, isVideoTrack) {
             if (remoteUserId) {
                 mPeer.replaceTrack(target, track, remoteUserId, isVideoTrack);
@@ -5414,7 +5426,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
             });
         }
 		
-		//##replace
+		// ## replace
         connection.replaceTrack = function(target, session, remoteUserId, isVideoTrack) {
             session = session || {};
 			
@@ -5490,7 +5502,7 @@ var RTCMultiConnection = function(roomid, forceOptions) {
                 }
             }
 			
-			//##replace
+			// ## replace
             function gumCallback(stream) {
                 connection.replaceTrack(target, stream, remoteUserId, isVideoTrack || session.video || session.screen);
             }
