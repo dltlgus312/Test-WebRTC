@@ -8,6 +8,7 @@
 <script src="/node_modules/jquery/dist/jquery.min.js"> </script>
 <script src="/node_modules/msr/MediaStreamRecorder.min.js"></script>
 <script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js"></script>
+<!-- <script src="https://rtcmulticonnection.herokuapp.com/dist/RTCMultiConnection.min.js"></script> -->
 
 <script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
 <script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
@@ -118,7 +119,8 @@
 		connection.session = {
 			audio: true,
 			video: true,
-			<!-- data : true -->
+			screen: true,
+			data : true
 		};
 		
 		connection.onstream = function(event) {
@@ -246,43 +248,62 @@
 			}
 		}
 		
-	
+		function screenMediaSetting(callback){
+			if(navigator.mediaDevices.getDisplayMedia){
+				navigator.mediaDevices.getDisplayMedia(
+				<!-- { screen: true } -->
+				).then(function(stream){
+					console.log(stream);
+					callback(stream)
+				}).catch(function(err){
+					console.log(err);
+				});
+			}else {
+				
+				<!-- connection.getChromeExtensionStatus('aaa', function(data){console.log(data);}) -->
+				
+				getScreenId(function(err, sourceId, constraints) {
+					console.log(err, sourceId, constraints);
+					navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+						callback(stream);
+					});
+				});
+			}
+		}
 		
-		<!-- function recorde(){ -->
-			<!-- var displayStream;  -->
-			<!-- navigator.mediaDevices.getDisplayMedia({video:true}) -->
-			<!-- .then(function(stream){ -->
-				<!-- displayStream = stream; -->
-				<!-- connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) { -->
+		function recorde(){
+			var displayStream; 
+			navigator.mediaDevices.getDisplayMedia({video:true})
+			.then(function(stream){
+				displayStream = stream;
+				connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) {
 					<!-- 사운드 매핑 -->
-					<!-- displayStream.addTrack(videoStream.stream.getAudioTracks()[0]); -->
-					<!-- recording(displayStream); -->
-				<!-- }); -->
-			<!-- }) -->
-			<!-- .catch(function(err){ -->
-				<!-- if(err instanceof TypeError){ -->
-					<!-- alert('에러 : ' + err); -->
-					<!-- recording(displayStream); -->
-				<!-- }else { -->
-					<!-- alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err); -->
-					<!-- recorde(); -->
-				<!-- } -->
+					displayStream.addTrack(videoStream.stream.getAudioTracks()[0]);
+					recording(displayStream);
+				});
+			})
+			.catch(function(err){
+				if(err instanceof TypeError){
+					alert('에러 : ' + err);
+					recording(displayStream);
+				}else {
+					alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err);
+					recorde();
+				}
 				<!-- if(err.constructor === NotAllowedError) NOT WORKING -->
-			<!-- }); -->
-		<!-- } -->
+			});
+		}
 		
-		<!-- function recording(stream){ -->
+		function recording(stream){
 		
-			<!-- mediaRecorder = new MediaStreamRecorder(stream); -->
-			<!-- mediaRecorder.mimeType = 'video/mp4;codecs=h264'; -->
+			mediaRecorder = new MediaStreamRecorder(stream);
+			mediaRecorder.mimeType = 'video/mp4;codecs=h264';
 			
-			<!-- mediaRecorder.ondataavailable = function (data) { -->
-				<!-- connection.socket.emit('uploadFile', {data:data}); -->
-			<!-- }; -->
-			
-			<!-- mediaRecorder.start(10 * 1000); -->
-		<!-- } -->
-		
+			mediaRecorder.ondataavailable = function (data) {
+				connection.socket.emit('uploadFile', {data:data});
+			};
+			mediaRecorder.start(10 * 1000);
+		}
 		
 		function multiRecorde(){
 			var streams = [];
@@ -349,10 +370,6 @@
 			video.style.border = '3px solid #ff0000'
 		}
 		
-		
-	
-	
-
 		function beforeOpenOrJoin(callback) {
 			userMediaSetting();
 		
@@ -400,11 +417,11 @@
 		
 		function afterOpenOrJoin(){
 			
-			if(connection.DetectRTC.browser.name === 'Firefox'){
+			<!-- if(connection.DetectRTC.browser.name === 'Firefox'){ -->
 			
-			}else {			
+			<!-- }else { -->
 				deviceSelector();
-			}
+			<!-- } -->
 			
 			resolutionSelector();
 			
@@ -413,7 +430,6 @@
 				changeDevice(connection.attachStreams[0]);
 				deviceSelector();
 			}
-			
 			
 			connection.socket.on('uploadURL', function(data){
 				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
@@ -662,54 +678,7 @@
 		
 		
 		
-		
-		
-		
-		
-		
-		
-		function screenMediaSetting(callback){
-			<!-- MediaDevices.getSupportedConstraints() -->
-			<!-- var constraints  { -->
-				<!-- "monitor", -->
-				<!-- "window", -->
-				<!-- "application", -->
-				<!-- "browser" -->
-			<!-- }; -->
-			
-			if(navigator.mediaDevices.getDisplayMedia){
-				navigator.mediaDevices.getDisplayMedia(
-				<!-- { screen: true } -->
-				).then(function(stream){
-					console.log(stream);
-					callback(stream)
-				}).catch(function(err){
-					console.log(err);
-				});
-			}else {			
-				getScreenId(function(err, sourceId, constraints) {
-					console.log(err, sourceId, constraints);
-					navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-						callback(stream);
-					});
-				});
-				
-				// ## TEST
-				<!-- var constraints = { -->
-					<!-- video: { -->
-						<!-- mandatory: { -->
-							<!-- chromeMediaSource: "desktop", -->
-							<!-- chromeMediaSourceId: "TFm/P8PDVo+gxRs5bdwneA==", -->
-							<!-- maxHeight: 1080, -->
-							<!-- maxWidth: 1920 -->
-						<!-- } -->
-					<!-- } -->
-				<!-- } -->
-				<!-- navigator.mediaDevices.getUserMedia(constraints).then(async stream => { -->
-						<!-- callback(stream); -->
-				<!-- }); -->
-			}
-		}
+	
 		
 		
 		
@@ -779,10 +748,14 @@
 		
 		document.getElementById('resolutionSelect').onchange = function (event){
 			var selectWidth = this.options[this.selectedIndex].value;
+			
 			connection.applyConstraints({
 				video : {
-					width : { exact : selectWidth },
-					height : { exact : selectWidth/16*9 }
+					<!-- FireFox Not Working -->
+					<!-- width : { exact : selectWidth }, -->
+					<!-- height : { exact : selectWidth/16*9 } -->
+					width : selectWidth,
+					height : selectWidth/16*9
 				}
 			});
 		}
@@ -807,16 +780,11 @@
 	
 	
 	
-	
-	
-
 		// MAIN START
 		beforeOpenOrJoin(function() {
 			connection.openOrJoin('a');
 			afterOpenOrJoin();
 		});
-		
-		
 	</script>
 
 
