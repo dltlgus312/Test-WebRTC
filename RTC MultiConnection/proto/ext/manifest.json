@@ -1,6 +1,6 @@
 {
-    "name" : "Screen Capturing",
-    "author": "Muaz Khan",
+    "name" : "Ebsw ScreenCapturing",
+    "author": "Lee",
     "version" : "3.7",
     "manifest_version" : 2,
     "minimum_chrome_version": "34",
@@ -12,7 +12,7 @@
        "js": [ "content-script.js" ],
        "all_frames": true,
        "run_at": "document_end",
-       "matches": ["https://192.168.50.210/*"]
+       "matches": ["https://*/*"]
     }],
     "icons" : {
         "48" : "icon.png"

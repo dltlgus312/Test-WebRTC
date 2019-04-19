@@ -230,6 +230,7 @@
 				alert("HTTP 연결 에러 추정");
 			}else if(err.name == 'TypeError'){ 
 				alert("모든제약조건이 false 이거나 제약 조건이 비어있음");
+				
 			}else {
 				alert(err);
 			}
@@ -240,6 +241,8 @@
 				navigator.mediaDevices = navigator;
 			} else if(navigator.mediaDevices){
 				navigator.mediaDevices = navigator.mediaDevices;
+			} else {
+				alert('WEB RTC 기능을 지원하지 않는 브라우저 입니다. 다른 브라우저를 이용해주세요');
 			}
 		}
 		
@@ -490,7 +493,7 @@
 				
 				var width = stream.getVideoTracks()[0].getSettings().width;
 				var videoConstraints = {
-					deviceId: deviceId ? { exact: deviceId } : null,
+					deviceId: deviceId ? { exact: deviceId } : '',
 					width: width ,
 					height: width/16*9
 				};
@@ -666,10 +669,19 @@
 		
 		
 		function screenMediaSetting(callback){
+			<!-- MediaDevices.getSupportedConstraints() -->
+			<!-- var constraints  { -->
+				<!-- "monitor", -->
+				<!-- "window", -->
+				<!-- "application", -->
+				<!-- "browser" -->
+			<!-- }; -->
+			
 			if(navigator.mediaDevices.getDisplayMedia){
 				navigator.mediaDevices.getDisplayMedia(
 				<!-- { screen: true } -->
 				).then(function(stream){
+					console.log(stream);
 					callback(stream)
 				}).catch(function(err){
 					console.log(err);
