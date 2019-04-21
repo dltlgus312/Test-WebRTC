@@ -104,17 +104,17 @@
 			tcp: true
 		};
 		
-		connection.iceServers = [];
+		<!-- connection.iceServers = []; -->
 		
-		connection.iceServers.push({
-			urls: 'stun:192.168.25.4:3478'
-		});
+		<!-- connection.iceServers.push({ -->
+			<!-- urls: 'stun:192.168.25.4:3478' -->
+		<!-- }); -->
 
-		connection.iceServers.push({
-			urls: 'turn:211.44.246.219:3478?transport=tcp',
-			credential: 'test',
-			username: 'test'
-		});
+		<!-- connection.iceServers.push({ -->
+			<!-- urls: 'turn:211.44.246.219:3478?transport=tcp', -->
+			<!-- credential: 'test', -->
+			<!-- username: 'test' -->
+		<!-- }); -->
 		
 		connection.session = {
 			audio: true,
