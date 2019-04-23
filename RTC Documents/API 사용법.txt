@@ -3,17 +3,10 @@ connection.maxParticipantsAllowed = 1000; 				최대 연결자 수
 connection.publicRoomIdentifier = params.publicRoomIdentifier; 		공용 방 생성
 connection.enableFileSharing = true; 					파일 공유 허가
 connection.replaceTrack( stream or track );				트랙 별 통신이기에 트랙을 체인지 해준다. ( 하나의 트랙은 하나의 sender와 receiver 를 갖는다. )
-
-connection.getAllParticipants().forEach(function(remoteId) {
-  		//Sender, Receiver 객체 얻는법
-   connection.peers[remoteId].peer.getSenders().forEach( 
-	( d ) => { console.log( d.track.id ); }
-   );
-   connection.peers[remoteId].peer.getReceivers().forEach( 
-	( d ) => { console.log( d.track.id ); }
-   );
-});
-
+connection.DetectRTC.browser.name					브라우저 이름
+connection.peers[' Peer 사용자 아이디 '].peer.remoteDescription		RTCSessionDescription 객체 얻기
+connection.peers[' Peer 사용자 아이디 '].peer.getTranceiver		RTCRtpTranceiver 객체 읻기
+connection.getAllParticipants().forEach(function(remoteId) {});		모든 유저 아이디 받기
 
 exact	정확한.. 없거나 안된다면 에러 표출! ( 기본은 근사값[사용가능한것중 아무거나]을 사용하도록 되어있다. )
 navigator.mediaDevices.enumerateDevices(); 				디바이스 종류
@@ -30,10 +23,6 @@ stream.getVideoTracks()[0].getSettings().width				비디오 해상도 확인법
 videoElement.videoWidth;
 
 if(window.MediaRecorder !== undefined) 				미디어 리코더가 있는지(녹화 가능여부) 확인 메소드
-
-
-
-
 
 
 https://namu.wiki/w/%ED%95%B4%EC%83%81%EB%8F%84/%EC%9D%BC%EB%9E%8C 해상도 참조 사이트

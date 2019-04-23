@@ -5,12 +5,13 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
+
+<script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
 <script src="/node_modules/jquery/dist/jquery.min.js"> </script>
 <script src="/node_modules/msr/MediaStreamRecorder.min.js"></script>
 <script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js"></script>
 <!-- <script src="https://rtcmulticonnection.herokuapp.com/dist/RTCMultiConnection.min.js"></script> -->
 
-<script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
 <script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
 <script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
 
@@ -119,8 +120,8 @@
 		connection.session = {
 			audio: true,
 			video: true,
-			screen: true,
-			data : true
+			screen: true
+			<!-- data : true -->
 		};
 		
 		connection.onstream = function(event) {
@@ -251,7 +252,8 @@
 		function screenMediaSetting(callback){
 			if(navigator.mediaDevices.getDisplayMedia){
 				navigator.mediaDevices.getDisplayMedia(
-				<!-- { screen: true } -->
+				<!-- Edge Options Error  -->
+				<!-- @@ { screen: true, audio : true } -->
 				).then(function(stream){
 					console.log(stream);
 					callback(stream)
@@ -260,7 +262,7 @@
 				});
 			}else {
 				
-				<!-- connection.getChromeExtensionStatus('aaa', function(data){console.log(data);}) -->
+				<!-- connection.getChromeExtensionStatus('hgpahehaffcbhjfccbhmdfehkokciibh', function(data){console.log(data);}) -->
 				
 				getScreenId(function(err, sourceId, constraints) {
 					console.log(err, sourceId, constraints);
@@ -417,11 +419,7 @@
 		
 		function afterOpenOrJoin(){
 			
-			<!-- if(connection.DetectRTC.browser.name === 'Firefox'){ -->
-			
-			<!-- }else { -->
-				deviceSelector();
-			<!-- } -->
+			deviceSelector();
 			
 			resolutionSelector();
 			
@@ -465,12 +463,13 @@
 				select.appendChild(option);		
 			
 				devices.forEach(function(device, index){
-					if(device instanceof InputDeviceInfo){
+					// FireFox Not Found Object Error ( InputDeviceInfo )
+					<!-- if(device instanceof InputDeviceInfo){ -->
 						var option = document.createElement('option');
-						option.text = device.label;
+						option.text = device.kind + " : " + device.label;
 						option.value = device.deviceId;
 						select.appendChild(option);							
-					}
+					<!-- } -->
 				});
 				
 				select.onchange = function(event){
@@ -516,8 +515,9 @@
 				
 				navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(function(str){
 					connection.replaceTrack(stream, str);
-					stream.addTrack(str.getVideoTracks()[0]);
 					stream.removeTrack(stream.getVideoTracks()[0]);
+					stream.addTrack(str.getVideoTracks()[0]);
+					document.getElementById(stream.id).play();
 				}).catch(error);			
 			}
 		}
