@@ -700,15 +700,19 @@
 					connection.addStream(newStream); // 내부적으로 renenogation(재협상)
 					multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
 				}else {
-					var stream = connection.attachStreams[1];
-					var oldTrack = stream.getVideoTracks()[0];
-					var newTrack = newStream.getTracks()[0];
-					
-					connection.replaceTrack(stream, newStream);
-					stream.addTrack(newTrack);
-					
-					stream.removeTrack(oldTrack);
-					oldTrack.stop();
+					connection.attachStreams.forEach(function(stream){
+						if(stream.isScreen){
+							var oldTrack = stream.getVideoTracks()[0];
+							var newTrack = newStream.getTracks()[0];
+							
+							connection.replaceTrack(stream, newStream);
+							stream.removeTrack(oldTrack);
+							stream.addTrack(newTrack);
+							oldTrack.stop();
+							
+							document.getElementById(stream.id).play();
+						}
+					});
 				}
 			});
 		};
