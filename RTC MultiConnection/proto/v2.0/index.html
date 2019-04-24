@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+	 <link rel="import" href="/html/head.html">
+	 
+	 <script>
+		$(document).ready(function(){
+			$('#show-canvas').click(function(){
+				$("#widget-container").show();
+				$("#fileshare-container").hide();
+				$("#setting-container").hide();
+			});
+			$('#show-file').click(function(){
+				$("#fileshare-container").show();
+				$("#widget-container").hide();
+				$("#setting-container").hide();
+			});
+			$('#setting-rtc').click(function(){
+				$("#setting-container").show();
+				$("#widget-container").hide();
+				$("#fileshare-container").hide();
+			});
+			$('#show-chat').click(function(){
+				$("#chat-container").toggle();
+			});
+			
+			
+			$('#share-screen').click(function(){});
+			$('#record-video').click(function(){});
+			$('#file-select').click(function(){});
+		
+		
+			$('#screen-sound').click(function(){});
+			$('#screen-display').click(function(){});
+			$('#my-sound').click(function(){});
+			$('#my-display').click(function(){});
+			$('#peer-sound').click(function(){});
+			$('#peer-display').click(function(){});
+			
+			
+			$('#camera-select').change(function(){})
+			$('#audio-select').change(function(){})
+			$('#speak-select').change(function(){})
+			$('#resolution-select').change(function(){})
+		})
+		
+		RTC();
+	 </script>
+</head>
+<body>
+
+	<div id="contents-container">
+		<div id="fileshare-container">
+			<button id="file-select">파일선택</button>
+		</div>
+		<div id="widget-container"></div>
+		
+		<div id="setting-container">
+			<select id="camera-select"></select>
+			<select id="audio-select"></select>
+			<select id="speak-select"></select>
+			
+			<select id="resolution-select">
+				<option id="hqvga" value="240">HqVGA</option>
+				<option id="qvga" value="320">QVGA</option>
+				<option id="hvga" value="480">HVGA</option>
+				<option id="nhd" value="640">NHD</option>
+				<option id="qhd" value="960">QHD</option>
+				<option id="hd" value="1280">HD</option>
+				<option id="fhd" value="1920">FHD</option>
+			</select>
+		</div>
+	</div>
+
+
+
+	<div id="video-container">
+		<div>
+			<video id="screen-video" poster="/image/07.jpg"></video>
+			<button id="screen-sound">소리</button>
+			<button id="screen-display">영상</button>
+		</div>
+		<div>
+			<video id="my-video" poster="/image/07.jpg"></video>
+			<button id="my-sound">소리</button>
+			<button id="my-display">영상</button>
+		</div>
+		<div>
+			<video id="peer-video" poster="/image/07.jpg"></video>
+			<button id="peer-sound">소리</button>
+			<button id="peer-display">영상</button>
+		</div>
+	</div>
+
+
+
+	<div id="interface-container">
+		<div id="tab1">
+			탭 전환
+			<button id="show-canvas">그림판</button>
+			<button id="show-file">파일공유</button>
+			<button id="setting-rtc">설정</button>
+		</div>
+		<div id="tab2">
+			인터페이스
+			<button id="share-screen">화면공유</button>
+			<button id="record-video">녹화시작</button>
+			<button id="show-chat">채팅</button>
+		</div>
+		<div id="tab3">
+			서버 녹화
+			<div id="server-record"></div>
+		</div>
+		<div id="tab4">
+			로컬 녹화
+			<div id="local-record"></div>
+		</div>
+	</div>
+	
+	
+	
+	<div id="chat-container">
+		<div id="contents"></div>
+		<input id="input" type="text" />
+		<input id="send" type="button" value="전송"/>
+	</div>
+
+	
+	
+</body>
+</html>

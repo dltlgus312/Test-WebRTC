@@ -1,0 +1,772 @@
+var connection, permission, multiStreamRecorder, localRecord, screenSender;
+		
+		connection = new RTCMultiConnection();
+		
+		connection.socketURL = '/';
+		
+		connection.dontCaptureUserMedia = true;
+		
+		connection.maxParticipantsAllowed = 2;
+		
+		connection.iceProtocols = {
+			udp: true,
+			tcp: true
+		};
+		
+		<!-- connection.iceServers = []; -->
+		
+		<!-- connection.iceServers.push({ -->
+			<!-- urls: 'stun:192.168.25.4:3478' -->
+		<!-- }); -->
+
+		<!-- connection.iceServers.push({ -->
+			<!-- urls: 'turn:211.44.246.219:3478?transport=tcp', -->
+			<!-- credential: 'test', -->
+			<!-- username: 'test' -->
+		<!-- }); -->
+		
+		connection.session = {
+			audio: true,
+			video: true,
+			screen: true,
+			data : true
+		};
+		
+		connection.onstream = function(event) {
+			var container;
+			var screenBtn = document.getElementById("screenShare");
+			if(connection.isInitiator){
+				<!-- alert("당신은 방의 주인입니다."); -->
+				permission = 'super';
+				screenBtn.disabled = false;
+				screenBtn.innerHTML = '화면공유';
+			}else {				
+				permission = 'user';
+				screenBtn.disabled = true;
+				screenBtn.innerHTML = '방장권한';
+			}
+		
+			if(event.stream.isScreen){
+				// ## ended >> src = ''
+				document.getElementById("screenShare").disabled = true;
+				container = document.getElementById('screen-container');
+				container.innerHTML  = "";
+			}else {			
+				container = document.getElementById('video-container');
+			}
+			
+			event.mediaElement.status = 'play';
+			event.mediaElement.controls = false;
+			container.appendChild( event.mediaElement );
+			event.mediaElement.play();
+			
+			if(permission == 'super'){
+				document.getElementById(event.mediaElement.id).onclick = function(){
+						if(event.mediaElement.status === 'play'){
+							event.mediaElement.status = 'stop';
+							connection.send({streamClose : true, id : event.mediaElement.id});
+						}
+						else {
+							event.mediaElement.status = 'play';
+							connection.send({streamOpen : true, id : event.mediaElement.id});
+						}
+				}
+				if(!multiStreamRecorder){
+					<!-- alert("SERVER 녹화 진행"); -->
+					<!-- recorde(); -->
+					if(window.MediaRecorder !== undefined) {
+						multiRecorde();
+					}else {					
+						alert('녹화가 불가능한 브라우저 입니다.');
+					}
+				}
+			}
+		};
+		
+
+		connection.onopen = function(event) {
+			if (designer.pointsLength <= 0) {
+				setTimeout(function() {
+					connection.send('plz-sync-points');
+				}, 1000);
+			}
+		};
+			
+		connection.onRoomFull = function(err) {
+			alert('방이 꽉 찼습니다. \n ERROR : ' + err);
+		};
+		
+		
+		
+		// Remote Peer 끊어지기 전....
+		connection.onleave = function(event){
+			// event.userid, event.extra // 한번 호출
+		}
+		
+		// Peer 끊어진 후....
+		connection.onstreamended = function(event) {
+			// stream, streamid, type, userid, extra, mediaElem // 스트림 마다 각각 호출
+			if (!event.mediaElement) {
+				event.mediaElement = document.getElementById(event.streamid);
+			}
+			
+			if (!event.mediaElement || !event.mediaElement.parentNode) {
+				location.reload();
+				return;
+			}
+			
+			event.mediaElement.parentNode.removeChild(event.mediaElement);
+		};
+		
+		
+		
+		
+		
+		// FUNCTIONS
+		function error(err, isAudio){
+			console.log("에러 : " + err); 
+			if(err.name == 'AbortError'){
+				alert("카메라가 다른 장치에서 이미 사용 중 입니다.");
+			}else if(err.name == 'NotAllowedError'){
+				alert("카메라에 대한 권한을 해제 후 사용가능 합니다.");
+			}else if(err.name == 'NotFoundError'){
+				if(isAudio){
+					alert("연결 가능한 오디오가 없습니다.");
+				}else {
+					alert("연결 가능한 카메라가 없습니다.");
+				}
+			}else if(err.name == 'NotReadableError'){
+				alert("알수없는 오류가 발생했습니다.");
+			}else if(err.name == 'SecurityError'){
+				alert("HTTP 연결 에러 추정");
+			}else if(err.name == 'TypeError'){ 
+				alert("모든제약조건이 false 이거나 제약 조건이 비어있음");
+				
+			}else {
+				alert(err);
+			}
+		}
+		
+		function userMediaSetting(){
+			if( navigator.getUserMedia ){
+				navigator.mediaDevices = navigator;
+			} else if( navigator.mediaDevices ){
+				navigator.mediaDevices = navigator.mediaDevices;
+			} else {
+				alert('WEB RTC 기능을 지원하지 않는 브라우저 입니다. 다른 브라우저를 이용해주세요');
+			}
+		}
+		
+		function screenMediaSetting(callback){
+			if(navigator.mediaDevices.getDisplayMedia){
+				navigator.mediaDevices.getDisplayMedia(
+				<!-- Edge Options Error  -->
+				<!-- @@ { screen: true, audio : true } -->
+				).then(function(stream){
+					console.log(stream);
+					callback(stream)
+				}).catch(error, false);
+			}else if(navigator.userAgent.indexOf('Chrome') !== -1){
+				getChromeExtensionStatus('hgpahehaffcbhjfccbhmdfehkokciibh', function(status) {
+					if(status == 'installed-enabled') {
+						sourceId =  null;
+						// chrome extension is installed & enabled.
+						getScreenConstraints(function(error, screen_constraints) {
+							if (error) {
+								<!-- return alert(error); -->
+								return console.log(error);
+							}
+
+							if(screen_constraints.canRequestAudioTrack) {
+								navigator.mediaDevices.getUserMedia({
+									video: screen_constraints,
+									audio: screen_constraints
+								})
+								.then(function(stream) {
+									callback(stream);
+								}).catch(error, false);
+							}else {
+								navigator.mediaDevices.getUserMedia({
+									video: screen_constraints
+								})
+								.then(function(stream) {
+									callback(stream);
+								}).catch(error, false);
+							}
+						}, true);
+					}
+					
+					if(status == 'installed-disabled') {
+						// chrome extension is installed but disabled.
+					}
+					
+					if(status == 'not-installed') {
+						// chrome extension is not installed
+						var isInstall = confirm("스크린 공유를 지원하지 않는 브라우저 입니다. \n해당 브라우저에서 스크린공유를 원하실 경우 확장프로그램을 설치 하셔야 합니다. \n설치 하시겠습니까?");
+						if(isInstall){
+							window.parent.location.href = 'https://chrome.google.com/webstore/detail/ebsw-screencapturing/hgpahehaffcbhjfccbhmdfehkokciibh?authuser=1';
+						}
+					}
+					
+					if(status == 'not-chrome') {
+						// using non-chrome browser
+						alert('확장프로그램을 설치 할 수 없는 브라우저 입니다.');
+					}
+				});
+			} else {
+				alert('스크린공유를 지원하지 않는 브라우저 입니다.');
+			}
+		}
+		
+		function recorde(){
+			var displayStream; 
+			navigator.mediaDevices.getDisplayMedia({video:true})
+			.then(function(stream){
+				displayStream = stream;
+				connection.streamEvents.selectAll({ isVideo:true }).forEach(function(videoStream) {
+					<!-- 사운드 매핑 -->
+					displayStream.addTrack(videoStream.stream.getAudioTracks()[0]);
+					recording(displayStream);
+				});
+			}).catch(function(err){
+				if(err instanceof TypeError){
+					alert('에러 : ' + err);
+					recording(displayStream);
+				}else {
+					alert('방장 녹화는 필수 입니다. 다시 시도해주세요 \n error : ' + err);
+					recorde();
+				}
+				<!-- if(err.constructor === NotAllowedError) NOT WORKING -->
+			});
+		}
+		
+		function recording(stream){
+		
+			mediaRecorder = new MediaStreamRecorder(stream);
+			mediaRecorder.mimeType = 'video/mp4;codecs=h264';
+			
+			mediaRecorder.ondataavailable = function (data) {
+				connection.socket.emit('uploadFile', {data:data});
+			};
+			mediaRecorder.start(10 * 1000);
+		}
+		
+		function multiRecorde(){
+			var streams = [];
+			
+			connection.streamEvents.selectAll({ isVideo:true }).forEach(function(event) {
+				streams.push(event.stream);
+			});
+			
+			connection.attachStreams.forEach(function(stream) {
+				streams.push(stream);
+			});
+
+			multiRecording(streams);
+		}
+		
+		function multiRecording(streams){
+			multiStreamRecorder = new MultiStreamRecorder(streams);
+			multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+			
+			multiStreamRecorder.ondataavailable = function (blob) {
+				<!-- connection.socket.emit('uploadFile', {data:blob}); -->
+				multiRecordeTempUrl(blob);
+			};
+			
+			multiStreamRecorder.start(5 * 1000);
+		}
+		
+		function multiRecordeTempUrl(blob){
+			var url = URL.createObjectURL(blob);
+			var html = "<a href='" + url + "' '> 녹화파일 </a><br/>";
+			var contain = document.getElementById('url-server');
+			contain.innerHTML += html;
+			contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+		}
+		
+		function localRecordStart(){
+		
+			var chunk = [];
+			var stream = connection.attachStreams[0];
+			var video = document.getElementById(stream.id);
+			
+			var options = {mimeType: 'video/webm;codecs=vp9'}; 
+			<!-- var options = {mimeType: 'video/mp4;codecs=h264'}; mp4 not working -->
+			
+			if(connection.DetectRTC.browser.name === 'Firefox'){
+				localRecord = new MediaRecorder(stream);
+			}else {
+				localRecord = new MediaRecorder(stream, options);
+			}
+			
+			localRecord.ondataavailable = function(e) {
+				console.log("녹화 중지 : DATA SAVE");
+				chunk.push(e.data);
+			}
+			
+			localRecord.onstop = function(){
+				console.log("녹화 중지 : ON STOP");
+				
+				var url = URL.createObjectURL(new Blob(chunk));
+				var html = "<a href='" + url + "' download='recorde.webm'> 녹화파일 </a><br/>";
+				
+				var contain = document.getElementById('url-local');
+				contain.innerHTML += html;
+				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+				video.style.border = ''
+				
+				var btn = document.getElementById("videoRecorde");
+				btn.status = 'stop'
+				btn.innerHTML = '녹화시작';
+			}
+			
+			localRecord.start();	
+			video.style.border = '3px solid #ff0000'
+		}
+		
+		function beforeOpenOrJoin(callback) {
+			userMediaSetting();
+		
+			findHighResolution(function(width){
+				// 16 : 9 Ratio Resolution ......
+				var videoConstraints;
+				if(connection.DetectRTC.browser.name === 'Firefox' || connection.DetectRTC.browser.name === 'Edge' ){
+					videoConstraints = {
+						width: width,
+						height: width/16*9
+					};				
+				}else {
+					videoConstraints = {
+						width: { exact : width },
+						height: { exact : width/16*9 }
+					};				
+				}
+
+				navigator.mediaDevices.getUserMedia({
+					video: videoConstraints
+					<!-- async  -->
+				}).then(function(mediaStream){
+					navigator.mediaDevices.getUserMedia({
+						audio: {
+							echoCancellation: true
+						}
+					<!-- async  -->
+					}).then(function(audioStream){
+						
+						mediaStream.addTrack(audioStream.getAudioTracks()[0]);
+						
+						myStream(mediaStream);
+						connection.attachStreams = [mediaStream];	
+						callback();
+					
+					}).catch(function(err){
+						error(err, true);
+						myStream(mediaStream);
+						connection.attachStreams = [mediaStream];
+						callback();
+					});
+				}).catch(error);
+			});
+		}
+		
+		function afterOpenOrJoin(){
+			
+			deviceSelector();
+			
+			resolutionSelector();
+			
+			// 디바이스 변경 이벤트
+			navigator.mediaDevices.ondevicechange = function (event){
+				changeDevice(connection.attachStreams[0]);
+				deviceSelector();
+			}
+			
+			connection.socket.on('uploadURL', function(data){
+				var tagA = "<a href=" + data.url + ">" + data.cnt + "_video</a><br/>";
+				var contain = document.getElementById('url-server');
+				contain.innerHTML += tagA;
+				contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+			});
+			
+			// STACK URL
+			connection.socket.on('urls', function(data){
+				data.forEach(function (item, index, array){
+					var tagA = "<a href=" + item + ">" + (index+1) + "_video</a><br/>";
+					var contain = document.getElementById('url-server');
+					contain.innerHTML += tagA;
+					contain.scrollTop = contain.scrollHeight - contain.clientHeight;
+				});
+			});
+		}
+		
+			
+		
+		// Devices LIST
+		function deviceSelector(){
+			
+			navigator.mediaDevices.enumerateDevices().then(function(devices){
+				
+				var select = document.getElementById('deviceSelect');
+				select.innerHTML = '';
+							
+				var option = document.createElement('option');
+				option.text = "카메라 선택";
+				option.value = "";
+				select.appendChild(option);		
+			
+				devices.forEach(function(device, index){
+					// FireFox Not Found Object Error ( InputDeviceInfo )
+					<!-- if(device instanceof InputDeviceInfo){ -->
+						var option = document.createElement('option');
+						option.text = device.kind + " : " + device.label;
+						option.value = device.deviceId;
+						select.appendChild(option);							
+					<!-- } -->
+				});
+				
+				select.onchange = function(event){
+					changeDevice(connection.attachStreams[0], select.options[select.selectedIndex].value);
+					
+					<!-- 오디오 출력 변경시...???? 검증 필요 -->
+					<!-- var video = document.getElementById(stream.id); -->
+					<!-- if (typeof video.sinkId !== 'undefined') { -->
+						<!-- video.setSinkId(audioDev.value).then().catch(function(err){console.log(err);}); -->
+					<!-- }else { -->
+						<!-- alert("not support"); -->
+					<!-- } -->
+				}
+				
+			}).catch(function(err){
+				console.log(err);
+			});
+		}
+		
+		function resolutionSelector(){
+			var maxWidth = connection.attachStreams[0].getVideoTracks()[0].getSettings().width;
+			document.querySelector('#resolutionSelect [value="' + maxWidth + '"]').selected = true;
+			var select = document.getElementById('resolutionSelect');
+			
+			for(var i=select.selectedIndex; i<=select.children.length; i++){
+				select.removeChild(select.children[select.children.length-1]);
+			}
+		}
+		
+		
+		function changeDevice(stream, deviceId, isAudio){
+			//## Audio Change 
+			if(isAudio){
+				
+			}else {
+				
+				var width = stream.getVideoTracks()[0].getSettings().width;
+				var videoConstraints = {
+					deviceId: deviceId ? { exact: deviceId } : '',
+					width: width ,
+					height: width/16*9
+				};
+				
+				navigator.mediaDevices.getUserMedia({video : videoConstraints}).then(function(str){
+					connection.replaceTrack(stream, str);
+					stream.removeTrack(stream.getVideoTracks()[0]);
+					stream.addTrack(str.getVideoTracks()[0]);
+					document.getElementById(stream.id).play();
+				}).catch(error);			
+			}
+		}
+		
+		
+		// Available Max Resolution ( WIDTH )
+		function findHighResolution(callback){
+			var videoConstraints = {
+				width: { ideal: 1280 },
+				height: { ideal: 720 }
+			};
+			
+			navigator.mediaDevices.getUserMedia({ video: videoConstraints })
+			.then(function(stream){
+				callback(stream.getVideoTracks()[0].getSettings().width)
+			}).catch(error);
+		}
+		
+		
+		function myStream(mediaStream, type){
+			var myVideo = document.createElement('video');
+			myVideo.muted = true;
+			myVideo.srcObject = mediaStream;
+			myVideo.id = mediaStream.id;
+			myVideo.status = 'play';
+			
+			var container;
+			if(type){
+				container = document.getElementById('screen-container');
+				container.innerHTML  = "";
+			}else {
+				container = document.getElementById('video-container');
+			}
+			container.appendChild( myVideo );
+			myVideo.play();
+			
+			myVideo.onclick = function(){
+				if(this.status === 'play'){
+					this.status = 'stop';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = false;
+				}
+				else {
+					this.status = 'play';
+					var tracks = mediaStream.getVideoTracks();
+					tracks[0].enabled = true;
+				}
+			}
+		}
+		
+		function chatSend(){
+			var chatInput = document.getElementById("chat");
+			var chatForm = "<label> 나 : " + chatInput.value + "</label></br>";
+			var chatContain = document.getElementById("chat-contents");
+			
+			chatContain.innerHTML += chatForm;
+			chatContain.scrollTop = chatContain.scrollHeight - chatContain.clientHeight;
+			
+			connection.send( {chat: true, data: chatInput.value} );
+			chatInput.value = '';	
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// CANVAS CONFIG
+		var designer = new CanvasDesigner();
+		
+		designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
+		designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+		
+		designer.setSelected('pencil');
+		
+		designer.setTools({
+			pencil: true,
+			eraser: true,
+			image: false,
+			pdf: false,
+			text: false,
+			line: false,
+			arrow: false,
+			dragSingle: false,
+			dragMultiple: false,
+			arc: false,
+			rectangle: false,
+			quadratic: false,
+			bezier: false,
+			marker: false,
+			zoom: false,
+			lineWidth: false,
+			colorsPicker: true,
+			extraOptions: false,
+			code: false,
+			undo: false
+		});
+		
+		designer.addSyncListener(function(data) {
+			connection.send({canvas: true, data: data});
+		});
+		
+		designer.appendTo(document.getElementById('widget-container'));
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		// DATA LISTENER
+		connection.onmessage = function(event) {
+			if (event.data === 'plz-sync-points') {
+				designer.sync();
+				return;
+			}
+			
+			if (event.data.streamClose){
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = false;
+					}
+				});
+				return;
+			}
+			
+			if (event.data.streamOpen) {
+				connection.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = true;
+					}
+				});
+				return;
+			}
+			
+			if (event.data.canvas) {
+				designer.syncData(event.data.data);
+			}
+			
+			if (event.data.chat){
+				var chatForm = "<label> 상대 : " + event.data.data + "</label></br>";
+				var chatContain = document.getElementById("chat-contents");
+				
+				chatContain.innerHTML += chatForm;
+				chatContain.scrollTop = chatContain.scrollHeight - chatContain.clientHeight;
+			}
+		};
+		
+		
+		
+	
+		
+		
+		
+		// USER EVENT 
+		document.getElementById("screenShare").onclick = function (){
+			// ## PLUGIN SETTING TEST
+			screenMediaSetting(function(newStream){
+				// 공유 종료 버튼 클릭시....
+				newStream.oninactive = function(event){
+					console.log(event);
+					<!-- connection.send({inactive:true, streamid : event.srcElement.streamid}); -->
+				}
+
+				if(!connection.attachStreams[1]){
+					newStream.isScreen = true;
+					myStream(newStream, 1);
+					
+					<!-- connection.attachStreams.push(newStream); 내부적 푸쉬... -->
+					connection.addStream(newStream); // 내부적으로 renenogation(재협상)
+					multiStreamRecorder.addStream(newStream); // 추가된 스크린 녹화
+				}else {
+					connection.attachStreams.forEach(function(stream){
+						if(stream.isScreen){
+							<!-- var newTrack = newStream.getTracks()[0]; -->
+							<!-- var oldTrack = stream.getVideoTracks()[0]; -->
+							<!-- connection.replaceTrack(stream, newStream); -->
+							<!-- stream.removeTrack(oldTrack); -->
+							<!-- stream.addTrack(newTrack); -->
+							<!-- oldTrack.stop(); -->
+							
+							var oldVideoTrack = stream.getVideoTracks()[0];
+							var newVideoTrack = newStream.getVideoTracks()[0];
+							
+							var oldAudioTrack = stream.getAudioTracks()[0];
+							var newAudioTrack = newStream.getAudioTracks()[0];
+							
+							connection.replaceTrack(stream, newVideoTrack, null, true);
+							stream.removeTrack(oldVideoTrack);
+							stream.addTrack(newVideoTrack);
+							oldVideoTrack.stop();
+							
+							if(oldAudioTrack){
+								if(newAudioTrack){
+									connection.replaceTrack(oldAudioTrack, newAudioTrack);
+									stream.removeTrack(oldAudioTrack);
+									stream.addTrack(newAudioTrack);
+									oldAudioTrack.stop();
+								}else {
+									<!-- stream.removeTrack(oldAudioTrack); -->
+									oldAudioTrack.stop();
+									
+									// 피어에서 트랙 삭제 고려...
+									// peer.removeTrack(oldAudioTrack);
+								}
+							}
+							if(!oldAudioTrack && newAudioTrack){
+								<!-- stream.addTrack(newAudioTrack); -->
+								oldAudioTrack.start();
+							}
+							document.getElementById(stream.id).play();
+						}
+					});
+				}
+			});
+		};
+		
+		document.getElementById("videoRecorde").onclick = function (){
+			if(this.status == undefined){
+				this.status = 'stop'
+			}
+			
+			if(this.status == 'stop'){
+				this.status = 'start';
+				this.innerHTML = '녹화중지';
+				
+				localRecordStart();
+			}else {
+				this.status = 'stop'
+				this.innerHTML = '녹화시작';
+				
+				if(localRecord && localRecord.state != 'inactive'){
+					localRecord.stop();
+				}
+			}
+		}
+		
+		document.getElementById("enter").onclick = function(){
+			chatSend();
+		}
+		
+		document.getElementById("chat").addEventListener("keydown", function(event) {
+			var keyPressed = event.keyCode || event.which;
+			if (keyPressed === 13) {
+				event.preventDefault();
+				
+				chatSend();
+			}
+		});
+		
+		document.getElementById('resolutionSelect').onchange = function (event){
+			var selectWidth = this.options[this.selectedIndex].value;
+			
+			connection.applyConstraints({
+				video : {
+					<!-- FireFox Not Working -->
+					<!-- width : { exact : selectWidth }, -->
+					<!-- height : { exact : selectWidth/16*9 } -->
+					width : selectWidth,
+					height : selectWidth/16*9
+				}
+			});
+		}
+		
+		document.getElementById('facingMode').onclick = function (event){
+			connection.mediaConstraints.video.optional.forEach(function(option){
+				if(option.facingMode == 'user'){
+					connection.applyConstraints({
+						video :{ facingMode : {exact : 'environment'} }
+					});
+				}else {
+					connection.applyConstraints({
+						video :{ facingMode : {exact : 'user'} }
+					});
+				}
+			});			
+		}
+	
+	
+	
+	
+	
+	
+	
+		// MAIN START
+		beforeOpenOrJoin(function() {
+			connection.openOrJoin('a');
+			afterOpenOrJoin();
+		});
