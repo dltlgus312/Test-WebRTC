@@ -120,11 +120,10 @@
 		<!-- }); -->
 		
 		connection.session = {
-			audio: true,
-			video: true,
-			screen: true,
 			data : true
 		};
+		
+		connection.userid = 'test';
 		
 		connection.onstream = function(event) {
 			var container;
@@ -187,7 +186,11 @@
 		};
 			
 		connection.onRoomFull = function(err) {
-			alert('방이 꽉 찼습니다. \n ERROR : ' + err);
+			if(err.indexOf('full') !== -1){
+				alert('방이 꽉 찼습니다.');			
+			}else {
+				alert('방에 접속하지 못했습니다.');
+			}
 		};
 		
 		

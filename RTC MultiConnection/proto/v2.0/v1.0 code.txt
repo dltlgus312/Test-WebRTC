@@ -1,4 +1,4 @@
-var connection, permission, multiStreamRecorder, localRecord, screenSender;
+var connection, permission, multiStreamRecorder, localRecord;
 		
 		connection = new RTCMultiConnection();
 		
@@ -8,10 +8,6 @@ var connection, permission, multiStreamRecorder, localRecord, screenSender;
 		
 		connection.maxParticipantsAllowed = 2;
 		
-		connection.iceProtocols = {
-			udp: true,
-			tcp: true
-		};
 		
 		<!-- connection.iceServers = []; -->
 		

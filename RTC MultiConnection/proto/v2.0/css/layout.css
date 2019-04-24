@@ -40,7 +40,7 @@ html, body {min-height: 100% !important; height: 100% !important;}
 
 #video-container {
 	width:30%;
-	height:90%;
+	height:85%;
 	float:left;
 	background-color:gray;
 }
@@ -73,7 +73,7 @@ html, body {min-height: 100% !important; height: 100% !important;}
 
 #interface-container {
 		width:30%;
-		height:10%;
+		height:auto;
 		float:left;
 		background-color:#f0f0f0;
 		overflow:auto;
