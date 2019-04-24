@@ -102,10 +102,10 @@
 		
 		connection.maxParticipantsAllowed = 2;
 		
-		connection.iceProtocols = {
-			udp: true,
-			tcp: true
-		};
+		<!-- connection.iceProtocols = { -->
+			<!-- udp: true, -->
+			<!-- tcp: true -->
+		<!-- }; -->
 		
 		<!-- connection.iceServers = []; -->
 		
@@ -123,7 +123,7 @@
 			data : true
 		};
 		
-		connection.userid = 'test';
+		<!-- connection.userid = 'test'; -->
 		
 		connection.onstream = function(event) {
 			var container;
