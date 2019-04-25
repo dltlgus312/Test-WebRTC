@@ -1,9 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-	 <link rel="import" href="/html/head.html">
+
+	 <!-- <link rel="import" href="/html/head.html"> -->
 	 
-	 <script>
+	<script src="/node_modules/jquery/dist/jquery.min.js"> </script>
+
+	<script src="/node_modules/webrtc-adapter/out/adapter.js"></script>
+	<script src="/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js"></script>
+	<script src="/node_modules/msr/MediaStreamRecorder.min.js"></script>
+
+	<script src="/node_modules/fbr/FileBufferReader.min.js"></script>
+	<script src="/node_modules/canvas-designer/dev/webrtc-handler.js"></script>
+	<script src="/node_modules/canvas-designer/canvas-designer-widget.js"></script>
+
+	<script src="/node_modules/webrtc-screen-capturing/Screen-Capturing.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+
+	<script src="/js/RTC.js"></script>
+	<link rel="stylesheet" href="/css/layout.css">
+	 
+	 
+	<script type="text/javascript">
+		var rtc;
+		
 		$(document).ready(function(){
 			$('#show-canvas').click(function(){
 				$("#widget-container").show();
@@ -28,8 +48,8 @@
 			$('#share-screen').click(function(){});
 			$('#record-video').click(function(){});
 			$('#file-select').click(function(){});
-		
-		
+
+
 			$('#screen-sound').click(function(){});
 			$('#screen-display').click(function(){});
 			$('#my-sound').click(function(){});
@@ -42,10 +62,19 @@
 			$('#audio-select').change(function(){})
 			$('#speak-select').change(function(){})
 			$('#resolution-select').change(function(){})
-		})
-		
-		RTC();
-	 </script>
+			
+			
+			var enables = {
+				video : $('#my-video'),
+				peerVideo : $('#peer-video'),
+				screen : { exact : $('#screen-video') }
+			};
+			
+			rtc = new RTC(enables);
+			rtc.openOrJoin(null, 'a');
+		});
+	</script>
+	
 </head>
 <body>
 
@@ -124,8 +153,6 @@
 		<input id="input" type="text" />
 		<input id="send" type="button" value="전송"/>
 	</div>
-
-	
 	
 </body>
 </html>

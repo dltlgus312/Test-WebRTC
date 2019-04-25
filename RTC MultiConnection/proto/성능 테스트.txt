@@ -32,3 +32,13 @@ navigator.userAgent
 ªÁ∆» : "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/534.54.16 (KHTML, like Gecko) Version/5.1.4 Safari/534.54.16"
 øß¡ˆ : "Mozilla/5.0 (Windows NT 10.0; Win64; x64; ServiceUI 13.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.140 Safari/537.36 Edge/17.17134"
 ¿ÕΩ∫ : "Mozilla/5.0 (Windows NT 10.0; WOW64; Trident/7.0; .NET4.0C; .NET4.0E; .NET CLR 2.0.50727; .NET CLR 3.0.30729; .NET CLR 3.5.30729; McAfee; rv:11.0) like Gecko"
+
+onStream
+LOCAL : 	MediaStream Type				REMOTE	: Event Type
+active: true					extra: {}
+id: "nBPHfXEgDBJdAEEd0TwCy7RigHYKcjkT8KgK"		mediaElement: video#96C78D14-FA14-4482-8E34-DDCD60FA3805
+isVidio : true					stream: MediaStream {isVideo: true, isAudio: false, isScreen: false, streamid: "96C78D14-FA14-4482-8E34-DDCD60FA3805", type: "remote", °¶}
+onactive: null					streamid: "96C78D14-FA14-4482-8E34-DDCD60FA3805"
+onaddtrack: null					type: "remote"
+oninactive: null					userid: "b"
+onremovetrack: null

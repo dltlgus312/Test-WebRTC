@@ -428,6 +428,7 @@
 			findHighResolution(function(width){
 				// 16 : 9 Ratio Resolution ......
 				var videoConstraints;
+				
 				if(connection.DetectRTC.browser.name === 'Firefox' || connection.DetectRTC.browser.name === 'Edge' ){
 					videoConstraints = {
 						width: width,
