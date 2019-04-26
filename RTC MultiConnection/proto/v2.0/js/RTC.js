@@ -13,6 +13,33 @@
 
 function RTC(enables){
 	
+	var rtc = this;
+	
+	rtc.conn = {};
+	
+	rtc.enables = {};
+	
+	rtc.streams = {};
+	
+	rtc.resolutionSelect = {};
+	
+	rtc.deviceSelect = {};
+	
+	rtc.permission = {};
+	
+	rtc.resolutions = [
+		// 4:3
+		{label: 'qqVGA', width: 160, height: 120},
+		{label: 'qVGA', width: 320, height: 240},
+		{label: 'VGA', width: 640, height: 480},
+		// 16:9
+		{label: 'nHD', width: 640, height: 360},
+		{label: 'HD', width: 1280, height: 720},
+		{label: 'FHD', width: 1920, height: 1080}
+	]
+	
+	
+	
 	if(!!!enables) {
 		enables = {};
 		enables.video = false;
@@ -29,8 +56,8 @@ function RTC(enables){
 	if(!!enables.canvas || !!enables.fileShare){
 		enables.dataChannel = true;
 	}
-
-	this.enables = enables;
+	
+	rtc.enables = enables;
 	
 	var stunOption = {
 		urls: 'stun:192.168.25.4:3478'
@@ -66,18 +93,10 @@ function RTC(enables){
 	
 	conn.enableFileSharing = !!enables.fileshare;
 	
-	this.conn = conn;
-	
-	var rtc = this;
-	
+	rtc.conn = conn;
 	
 	// ######## RTC Multi Connection Event ########
 	this.setstream = function(event) {
-		
-		if(!!!enables.video && !!!enables.peerVideo && !!!enables.screen){
-			rtc.onstream(event);
-			return;
-		}
 		
 		var evt = event;
 		
@@ -90,8 +109,15 @@ function RTC(enables){
 			
 			var video = document.createElement('video');
 			video.id = event.id;
-			
+			video.srcObject = event;
 			evt.mediaElement = video;
+		}
+		
+		rtc.resolutionSetting(evt.stream);
+		
+		if(!!!enables.video && !!!enables.peerVideo && !!!enables.screen){
+			rtc.onstream(event);
+			return;
 		}
 		
 		var contain;
@@ -105,14 +131,27 @@ function RTC(enables){
 			contain = contain[0];
 		}
 		
+		
 		if(contain instanceof HTMLDivElement){
-			contain.innerHTML = '';
+			console.error(evt);
 			contain.appendChild(evt.mediaElement);
 			evt.mediaElement.play();
+			
+			evt.stream.play = function(){
+				evt.mediaElement.play();
+			};
 		}else if(contain instanceof HTMLVideoElement){
 			contain.srcObject = evt.stream;
+			contain.id = evt.stream.id;
 			contain.play();
+			
+			evt.stream.play = function(){
+				contain.play();
+			};
+		}else {
+			console.error('contain(video, peerVideo, screen) type only Element', contain);
 		}
+		
 	};
 
 	this.onopen = function(event) {
@@ -120,16 +159,6 @@ function RTC(enables){
 			setTimeout(function() {
 				this.conn.send('plz-sync-points');
 			}, 1000);
-		}
-	};
-
-	this.onRoomFull = function(err) {
-		if(err.indexOf('full') !== -1){
-			console.error(err);
-			alert('방이 꽉 찼습니다.');
-		}else {
-			console.error(err);
-			alert('동일 아이디 접속자가 있습니다.');
 		}
 	};
 
@@ -150,6 +179,15 @@ function RTC(enables){
 		event.mediaElement.parentNode.removeChild(event.mediaElement);
 	};
 	
+	this.onRoomFull = function(err) {
+		if(err.indexOf('full') !== -1){
+			console.error(err);
+			alert('방이 꽉 찼습니다.');
+		}else {
+			console.error(err);
+			alert('동일 아이디 접속자가 있습니다.');
+		}
+	};
 	
 	this.onUserIdAlreadyTaken = function(useridAlreadyTaken, yourNewUserId){
 		// Re join depend
@@ -206,21 +244,26 @@ RTC.prototype.onMediaCaptureError = function(err, isAudio){
 
 RTC.prototype.browserNotSupportErrorHandler = function (){
 	
-	var notSupportList = [];
-	
 	var enables = this.enables;
+	
+	var notSupportList = [];
 	
 	var notSupportCriticalList = [];
 	
+	window.navigator.mediaDevices = window.navigator.mediaDevices || window.navigator;
 	
 	if(!!!window.RTCPeerConnection){
 		notSupportCriticalList.push('all');
 	}
 	
-	window.navigator.mediaDevices = window.navigator.mediaDevices || window.navigator;
-	
 	if(!!!window.navigator.mediaDevices.getUserMedia){
 		notSupportCriticalList.push('all');
+	}
+	
+	if(!!!enables.video && !!!enables.peerVideo){
+		notSupportList.push('video');
+		console.log('Not Found Video Contain');
+		// notSupportCriticalList.push('video');
 	}
 	
 	if(!!enables.screen && !!!window.navigator.mediaDevices.getDisplayMedia && window.navigator.userAgent.indexOf('Chrome') === -1 && window.navigator.userAgent.indexOf('Edge') !== -1){
@@ -303,14 +346,17 @@ RTC.prototype.openOrJoin = function(userid, roomid){
 		rtc.conn.sessionid = conn.userid;
 		
 		rtc.permission = 'super';
+	}else {
+		console.error(userid, roomid,);
 	}
 	
-	rtc.beforeOpenOrJoin(function(err){
-		if(err){
+	rtc.beforeOpenOrJoin(function(data){
+		if(data === 'return'){
 			return;
 		}
 		rtc.conn.openOrJoin(rtc.conn.sessionid);
-	})
+		rtc.afterOpenOrJoin(data);
+	});
 }
 
 RTC.prototype.beforeOpenOrJoin = function(callback){
@@ -326,33 +372,244 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		return ;
 	}
 	
-	rtc.eventHandler();
+	rtc.RMCEventHandler();
 	
-	rtc.getFindHighestResolutionWidth(function(width){	
+	var constraints = {
+		video:{
+			width: 1920,
+			height: 1080
+		}
+	};
+	
+	rtc.getUserMedia(constraints, 'all', function(stream, err){
 		
-		// if(rtc.conn.DetectRTC.browser.name === 'Firefox' || rtc.conn.DetectRTC.browser.name === 'Edge' ){}
+		stream.isVideo = true;
 		
-		var constraints = {
-			video:{
-				width: width,
-				height: width/16*9
-			}
-		};
+		rtc.setstream(stream);
 		
-		rtc.getUserMedia(constraints, false, function(stream, err){
-			stream.isVideo = true;
-			
-			rtc.setstream(stream);
-			
-			rtc.conn.attachStreams = [stream];
-			
-			callback();
-		});
+		rtc.conn.attachStreams = [stream];
 		
+		rtc.streams[stream.id] = stream;
+		
+		callback(stream);
 	});
 }
 
-RTC.prototype.eventHandler = function(){
+RTC.prototype.afterOpenOrJoin = function(stream){
+	var rtc = this;
+	
+	if(!!rtc.streams && !!rtc.enables.video &&  !!rtc.enables.setting){
+		rtc.deviceSetting(stream);
+		// rtc.resolutionSetting(stream);
+	}
+}
+
+// 사용자 장치(마이크, 카메라, 스피커) 셋팅
+RTC.prototype.deviceSetting = function(stream){
+	var rtc = this;
+
+	navigator.mediaDevices.enumerateDevices().then(function(devices){
+		var elements = {};
+		var values = {video:[], audioI:[], audioO:[]};
+		
+		var vSelect = document.createElement('select');
+		var aiSelect = document.createElement('select');
+		var aoSelect = document.createElement('select');
+		
+		elements.id = stream.id;
+		vSelect.id = stream.id + '_videoSelect';
+		aiSelect.id = stream.id + '_audioISelect';
+		aoSelect.id = stream.id + '_audioOSelect';
+		
+		var vDefault = document.createElement('option');
+		var aiDefault = document.createElement('option');
+		var aoDefault = document.createElement('option');
+		
+		vDefault.text = '카메라 선택';
+		aiDefault.text = '마이크 선택';
+		aoDefault.text = '스피커 선택';
+		
+		vSelect.appendChild(vDefault);
+		aiSelect.appendChild(aiDefault);
+		aoSelect.appendChild(aoDefault);
+		
+		devices.forEach(function(device, index){
+			var option = document.createElement('option');
+			option.text = device.kind + " : " + device.label;
+			option.value = device.deviceId;
+			
+			if(device.kind === 'videoinput'){
+				vSelect.appendChild(option);
+				values.video.push(device);
+			}else if(device.kind === 'audioinput'){
+				aiSelect.appendChild(option);					
+				values.audioI.push(device);
+			}else if(device.kind === 'audiooutput'){
+				aoSelect.appendChild(option);					
+				values.audioO.push(device);
+			}
+			
+			stream.getTracks().forEach(function(track){
+				if(device.deviceId === track.getSettings().deviceId){
+					option.selected = true;
+				}
+			});
+		});
+		
+		elements.video = vSelect;
+		elements.audioI = aiSelect;
+		elements.audioO = aoSelect;
+		
+		elements.video.onchange = function(event){
+			rtc.deviceChange(stream, elements.video.options[elements.video.selectedIndex].value, 'videoinput');
+		}
+		
+		elements.audioI.onchange = function(event){
+			rtc.deviceChange(stream, elements.audioI.options[elements.audioI.selectedIndex].value, 'audioinput');
+		}
+		
+		elements.audioO.onchange = function(event){
+			rtc.deviceChange(stream, elements.audioO.options[elements.audioO.selectedIndex].value, 'audiooutput');
+		}
+		
+		rtc.deviceSelect = {elements, values};
+		
+		rtc.ondevicesetting(rtc.deviceSelect);
+		
+	}).catch(function(err){
+		console.error(err);
+	});
+}
+
+RTC.prototype.deviceChange = function(stream, deviceId, kind){
+	var constraints;
+	var isVideo = true;
+	var oTrack;
+	
+	if(kind === 'audiooutput'){
+		// oTrack = stream.getVideoTracks()[0];
+		isVideo = false;
+	} else if(kind === 'audioinput'){
+		oTrack = stream.getAudioTracks()[0];
+		isVideo = false;
+	} else if(kind === 'videoinput'){
+		constraints = {	
+			video : {
+				deviceId: deviceId ? { exact: deviceId } : '',
+				width: stream.getVideoTracks()[0].getSettings().width,
+				height: stream.getVideoTracks()[0].getSettings().height
+			}
+		}
+		
+		oTrack = stream.getVideoTracks()[0];
+	}
+	
+	rtc.getUserMedia(constraints, kind, function(str){
+		
+		var nTrack = str.getTracks()[0];
+		
+		// param : old(stream || track), new(stream || track), remoteid, isVideo
+		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo); 
+		
+		stream.removeTrack(oTrack);
+		
+		stream.addTrack(nTrack);
+		
+		stream.play();
+	});
+}
+
+RTC.prototype.resolutionSetting = function(stream){
+	
+	var optimalList = [], isOpt = false;
+	
+	var width = stream.getVideoTracks()[0].getSettings().width;
+	var height = stream.getVideoTracks()[0].getSettings().height;
+	
+	for ( var index in rtc.resolutions ){
+		
+		var resolution = rtc.resolutions[index];
+		
+		optimalList.push(resolution);
+		
+		if(resolution.width === width && resolution.height === height){
+			isOpt = true;
+			break;
+		}
+	}
+	
+	if(!isOpt){
+		optimalList = [];
+		
+		optimalList.push({label: 'high', width: width, height: height});
+		
+		optimalList.push({label: 'midle', width: Math.floor(width/3*2), height: Math.floor(height/3*2)});
+		
+		optimalList.push({label: 'low', width: Math.floor(width/3), height: Math.floor(height/3)});
+	}
+	
+	var elements = {}, values = [], select, defaultOp;
+	
+	elements.id = stream.id;
+	
+	defaultOp = document.createElement('option');
+	
+	defaultOp.text = '해상도 선택';
+	
+	select = document.createElement('select');
+	
+	select.id = stream.id + '_resolution';
+	
+	select.appendChild(defaultOp);
+	
+	for ( var index in optimalList ){
+		
+		var opt = optimalList[index];
+		
+		var option = document.createElement('option');
+		
+		option.text = opt.label;
+		
+		option.value = opt.width + 'x' + opt.height;
+		
+		values.push(opt);
+		
+		select.appendChild(option);
+		
+		if(width === opt.width && height === opt.height){
+			option.selected = true;	
+		}
+		
+	}
+	
+	select.onchange = function(event){
+		rtc.resolutionChange(stream, select.options[select.selectedIndex].value);
+	}
+	
+	elements.select = select;
+	
+	rtc.resolutionSelect = {elements, values};
+	
+	rtc.onresolutionsetting(rtc.resolutionSelect);
+	
+}
+
+RTC.prototype.resolutionChange = function(stream, value){
+	var rtc = this;
+	
+	value = value.split('x');
+	
+	var track = stream.getVideoTracks()[0];
+
+	// ##### 원격 비디오 화질 ... #####
+	track.applyConstraints({
+			width : value[0],
+			height : value[1]
+	});
+}
+
+
+RTC.prototype.RMCEventHandler = function(){
 	var rtc = this;
 	
 	rtc.conn.onstream = rtc.setstream;
@@ -373,44 +630,45 @@ RTC.prototype.setContains = function(contains){
 	this.enables = contains;
 }
 
-RTC.prototype.getFindHighestResolutionWidth = function(callback){
-	
-	var constraints = {
-		video : {
-			width: { ideal: 1280 },
-			height: { ideal: 720 }			
-		}
-	};
-	
-	this.getUserMedia(constraints, false, function(stream){
-		var width = this.highestResolutionWidth = stream.getVideoTracks()[0].getSettings().width;
-		callback(width);
-	});
-}
-
-RTC.prototype.getUserMedia = function(constraints, isAudio, callback){	
+RTC.prototype.getUserMedia = function(constraints, kind, callback){	
 	
 	var rtc = this;
 	
-	navigator.mediaDevices.getUserMedia(constraints)
-	.then(function(mediaStream){
-		if(!!isAudio){
-			navigator.mediaDevices.getUserMedia({
-				audio: {
-					echoCancellation: true
-				}
-			}).then(function(audioStream){				
-				mediaStream.addTrack(audioStream.getAudioTracks()[0]);
-			}).catch(function(err){
-				// callback(null, err);
-				rtc.mediaCaptureErrorHandler(err, true);
-			});
-		}
-		callback(mediaStream);;
-	}).catch(function(err){
-		// callback(null, err);
-		rtc.mediaCaptureErrorHandler(err, false);
-	});
+	if(kind === 'audioinput'){
+		navigator.mediaDevices.getUserMedia({
+			audio: {
+				echoCancellation: true
+			}
+		}).then(function(audioStream){				
+			callback(audioStream);
+		}).catch(function(err){
+			// callback(null, err);
+			rtc.mediaCaptureErrorHandler(err, true);
+		});
+	}else if(kind === 'videoinput' || kind === 'all'){
+		navigator.mediaDevices.getUserMedia(constraints)
+		.then(function(mediaStream){
+			if(kind === 'all'){
+				navigator.mediaDevices.getUserMedia({
+					audio: {
+						echoCancellation: true
+					}
+				}).then(function(audioStream){				
+					mediaStream.addTrack(audioStream.getAudioTracks()[0]);
+					callback(mediaStream);
+				}).catch(function(err){
+					rtc.mediaCaptureErrorHandler(err, true);
+					callback(mediaStream);;	
+				});
+			}else {
+				callback(mediaStream);;				
+			}
+		}).catch(function(err){
+			rtc.mediaCaptureErrorHandler(err, false);
+		});
+	}else {
+		console.error('audioinput, videoinput, all 중 1택');
+	}
 }
 
 
@@ -420,9 +678,43 @@ RTC.prototype.getUserMedia = function(constraints, isAudio, callback){
 
 
 
-// Override Event Method
+// !rtc.enables.video && !rtc.enables.peerVideo && !rtc.enables.screen 
+// NOT FOUND Override Event Method
 RTC.prototype.onstream = function(event){
 	
+}
+
+// event.selects == Select ElementType, event.values == ArrayType
+// Custom Override Event Method
+RTC.prototype.ondevicesetting = function(event){
+	var rtc = this;
+	
+	if(rtc.enables.setting instanceof jQuery){
+		rtc.enables.setting = rtc.enables.setting[0];
+	}else if(rtc.enables.setting instanceof HTMLDivElement){
+		
+	}else {
+		console.error('enables.setting 타입이 \'HTMLDivElement\'가 아닙니다.');
+		return;
+	}
+	rtc.enables.setting.appendChild(event.elements.video);
+	rtc.enables.setting.appendChild(event.elements.audioI);
+	rtc.enables.setting.appendChild(event.elements.audioO);
+}
+
+RTC.prototype.onresolutionsetting = function(event){
+	var rtc = this;
+	
+	if(rtc.enables.setting instanceof jQuery){
+		rtc.enables.setting = rtc.enables.setting[0];
+	}else if(rtc.enables.setting instanceof HTMLDivElement){
+		
+	}else {
+		console.error('enables.setting 타입이 \'HTMLDivElement\'가 아닙니다.');
+		return;
+	}
+	
+	rtc.enables.setting.appendChild(event.elements.select);
 }
 
 
