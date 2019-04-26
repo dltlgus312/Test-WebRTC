@@ -110,10 +110,10 @@ function RTC(enables){
 			var video = document.createElement('video');
 			video.id = event.id;
 			video.srcObject = event;
+			video.muted = true;
 			evt.mediaElement = video;
 		}
 		
-		rtc.resolutionSetting(evt.stream);
 		
 		if(!!!enables.video && !!!enables.peerVideo && !!!enables.screen){
 			rtc.onstream(event);
@@ -151,6 +151,9 @@ function RTC(enables){
 		}else {
 			console.error('contain(video, peerVideo, screen) type only Element', contain);
 		}
+		
+		
+		rtc.resolutionSetting(evt.stream);
 		
 	};
 
@@ -399,12 +402,19 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 	var rtc = this;
 	
 	if(!!rtc.streams && !!rtc.enables.video &&  !!rtc.enables.setting){
+		
 		rtc.deviceSetting(stream);
+		
+		navigator.mediaDevices.ondevicechange = function (event){
+			// @@ 2번 호출 오류.....
+			rtc.deviceChange(stream, stream.getAudioTracks()[0].getSettings().deviceId, 'audioinput');
+			rtc.deviceChange(stream, stream.getVideoTracks()[0].getSettings().deviceId, 'videoinput');
+		};
+		
 		// rtc.resolutionSetting(stream);
 	}
 }
 
-// 사용자 장치(마이크, 카메라, 스피커) 셋팅
 RTC.prototype.deviceSetting = function(stream){
 	var rtc = this;
 
@@ -482,26 +492,42 @@ RTC.prototype.deviceSetting = function(stream){
 }
 
 RTC.prototype.deviceChange = function(stream, deviceId, kind){
+	stream.getTracks().forEach(function(d){console.log(d.kind,d.getSettings().deviceId)});
+	var rtc = this;
 	var constraints;
 	var isVideo = true;
 	var oTrack;
 	
 	if(kind === 'audiooutput'){
+		
 		// oTrack = stream.getVideoTracks()[0];
+		
 		isVideo = false;
 	} else if(kind === 'audioinput'){
+		
+		constraints = {	
+			audio : {
+				deviceId: deviceId ? { exact: deviceId } : '',
+				echoCancellation: true
+			}
+		}
+		
 		oTrack = stream.getAudioTracks()[0];
+		
 		isVideo = false;
+	
 	} else if(kind === 'videoinput'){
+	
 		constraints = {	
 			video : {
 				deviceId: deviceId ? { exact: deviceId } : '',
-				width: stream.getVideoTracks()[0].getSettings().width,
-				height: stream.getVideoTracks()[0].getSettings().height
+				width: 1920,
+				height: 1080
 			}
 		}
 		
 		oTrack = stream.getVideoTracks()[0];
+		
 	}
 	
 	rtc.getUserMedia(constraints, kind, function(str){
@@ -509,13 +535,19 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		var nTrack = str.getTracks()[0];
 		
 		// param : old(stream || track), new(stream || track), remoteid, isVideo
-		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo); 
+		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo);
 		
 		stream.removeTrack(oTrack);
 		
 		stream.addTrack(nTrack);
 		
 		stream.play();
+		
+		rtc.deviceSetting(stream);
+		
+		if(isVideo){
+			rtc.resolutionSetting(stream);
+		}
 	});
 }
 
@@ -603,8 +635,8 @@ RTC.prototype.resolutionChange = function(stream, value){
 
 	// ##### 원격 비디오 화질 ... #####
 	track.applyConstraints({
-			width : value[0],
-			height : value[1]
+		width : value[0],
+		height : value[1]
 	});
 }
 
@@ -635,11 +667,8 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	var rtc = this;
 	
 	if(kind === 'audioinput'){
-		navigator.mediaDevices.getUserMedia({
-			audio: {
-				echoCancellation: true
-			}
-		}).then(function(audioStream){				
+		navigator.mediaDevices.getUserMedia(constraints)
+		.then(function(audioStream){				
 			callback(audioStream);
 		}).catch(function(err){
 			// callback(null, err);
@@ -689,6 +718,26 @@ RTC.prototype.onstream = function(event){
 RTC.prototype.ondevicesetting = function(event){
 	var rtc = this;
 	
+	for(index in event.elements){
+		var select = event.elements[index]
+		
+		var element = document.getElementById(select.id);
+	
+		if(!!element){
+			element.parentNode.removeChild(element);
+		}
+	}
+	
+	// event.elements.forEach(function(select){
+		// var element = document.getElementById(select.id);
+	
+		// if(!!element){
+			// element.parentNode.removeChild(element);
+		// }
+	// });
+	
+	
+	
 	if(rtc.enables.setting instanceof jQuery){
 		rtc.enables.setting = rtc.enables.setting[0];
 	}else if(rtc.enables.setting instanceof HTMLDivElement){
@@ -697,6 +746,9 @@ RTC.prototype.ondevicesetting = function(event){
 		console.error('enables.setting 타입이 \'HTMLDivElement\'가 아닙니다.');
 		return;
 	}
+	
+	// rtc.enables.setting.innerHTML = '';
+	
 	rtc.enables.setting.appendChild(event.elements.video);
 	rtc.enables.setting.appendChild(event.elements.audioI);
 	rtc.enables.setting.appendChild(event.elements.audioO);
@@ -704,6 +756,12 @@ RTC.prototype.ondevicesetting = function(event){
 
 RTC.prototype.onresolutionsetting = function(event){
 	var rtc = this;
+	
+	var element = document.getElementById(event.elements.select.id);
+	
+	if(!!element){
+		element.parentNode.removeChild(element);
+	}
 	
 	if(rtc.enables.setting instanceof jQuery){
 		rtc.enables.setting = rtc.enables.setting[0];
