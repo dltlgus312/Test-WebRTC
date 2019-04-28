@@ -23,7 +23,7 @@ stream.getVideoTracks()[0].getSettings().width				비디오 해상도 확인법
 videoElement.videoWidth;
 
 브라우저 분기처리 (영상, 스크린, 녹화, 데이터: [캔버스, 파일공유] )
-navigator.userAgent.indexOf('Chrome')					크로미움 기반 브라우저인지 확인
+navigator.userAgent.indexOf('Chrome')				크로미움 기반 브라우저인지 확인
 if(window.MediaRecorder !== undefined) 				미디어 리코더가 있는지(녹화 가능여부) 확인 메소드
 if(new RTCPeerConnection().createDataChannel)				데이터채널 사용가능 여부
 
