@@ -45,17 +45,39 @@
 			});
 			
 			
-			$('#share-screen').click(function(){});
+			$('#share-screen').click(function(){
+				rtc.screenShare();
+			});
 			$('#record-video').click(function(){});
-			$('#file-select').click(function(){});
+			$('#file-select').click(function(){
+				rtc.fileShare();
+			});
 
 
-			$('#screen-sound').click(function(){});
-			$('#screen-display').click(function(){});
-			$('#my-sound').click(function(){});
-			$('#my-display').click(function(){});
-			$('#peer-sound').click(function(){});
-			$('#peer-display').click(function(){});
+			$('#screen-sound').click(function(){
+				var element = document.getElementById(rtc.screen.id);
+				rtc.streamEnabled(element, false);
+			});
+			$('#screen-display').click(function(){
+				var element = document.getElementById(rtc.screen.id);
+				rtc.streamEnabled(element, true);
+			});
+			$('#my-sound').click(function(){
+				var element = document.getElementById(rtc.video.id);
+				rtc.streamEnabled(element, false);
+			});
+			$('#my-display').click(function(){
+				var element = document.getElementById(rtc.video.id);
+				rtc.streamEnabled(element, true);
+			});
+			$('#peer-sound').click(function(){
+				var element = document.getElementById(rtc.peerStreams[0].id);
+				rtc.streamEnabled(element, false);
+			});
+			$('#peer-display').click(function(){
+				var element = document.getElementById(rtc.peerStreams[0].id);
+				rtc.streamEnabled(element, true);
+			});
 			
 			
 			$('#camera-select').change(function(){})
@@ -69,11 +91,15 @@
 				video : $('#my-video'),
 				peerVideo : $('#peer-video'),
 				screen : { exact : $('#screen-video') },
-				setting : $('#setting-container')
+				setting : $('#setting-container'),
+				fileShare : $('#fileshare-container'),
+				canvas : $('#widget-container')
+				<!-- dataChannel : {exact: true} -->
 			};
 			
 			rtc = new RTC(enables);
-			rtc.openOrJoin(null, 'a');
+			rtc.openOrJoin('a', 'c', 'super');
+			<!-- rtc.openOrJoin('b', 'c', 'user'); -->
 		});
 	</script>
 	

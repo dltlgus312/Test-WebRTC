@@ -4,30 +4,39 @@
 // enables.screen = div || video; (exact)
 // enables.canvas = div; (exact)
 // enables.fileShare = div; (exact)
+// enables.setting = div;
 
 
-// enables.setting = true; >> iframe 모듈
-// enables.recorde = true; (exact)
-// enables.recordeWatch = true; >> 방장 녹화 (감시용) (exact)
 // enables.dataChannel = true; (exact)
+// enables.recorde = true; (exact)
+// enables.recordeWatch = true; >> 방장 녹화 (감시용)
+// enables.superControl = true; 방장 제어 
 
 function RTC(enables){
 	
 	var rtc = this;
 	
-	rtc.conn = {};
+	rtc.conn = null;
 	
-	rtc.enables = {};
+	rtc.enables = null;
 	
-	rtc.streams = {};
+	rtc.video = null;
 	
-	// elements, values
-	rtc.resolutionSelect = {};
+	rtc.screen = null;
 	
-	// elements, values
-	rtc.deviceSelect = {};
+	rtc.peerStreams = [];
 	
-	rtc.permission = {};
+	rtc.designer = null;
+	
+	rtc.msr = null;
+	
+	rtc.resolutionSelect = null;
+	
+	rtc.deviceSelect = null;
+	
+	rtc.permission = null;
+	
+	rtc.recordeWatchTime = 10 * 1000;
 	
 	rtc.defResolution = {
 		width: 1920,
@@ -59,6 +68,7 @@ function RTC(enables){
 		enables.canvas = false;
 		enables.fileShare = false;
 		enables.setting = false;
+		enables.superControl = true;
 	}
 
 	if(!!enables.canvas || !!enables.fileShare){
@@ -99,15 +109,15 @@ function RTC(enables){
 	
 	conn.session = session;
 	
-	conn.enableFileSharing = !!enables.fileshare;
+	conn.enableFileSharing = !!enables.fileShare;
 	
 	rtc.conn = conn;
+	
 	
 	// ######## RTC Multi Connection Event ########
 	this.setstream = function(event) {
 		
 		var evt = event;
-		
 		
 		// ======= 초기화 =======
 		if(!!!event.type){
@@ -122,66 +132,62 @@ function RTC(enables){
 			video.srcObject = event;
 			video.muted = true;
 			evt.mediaElement = video;
+		}else {
+			rtc.peerStreams.push(event.stream);
+			if(!!rtc.enables.recordeWatch && rtc.permission === 'super' && rtc.notSupportList.indexOf('recorde') === -1){
+				rtc.msrWatchStart();
+			}
 		}
 		// ====================
+		
+		
 		
 		// =======필수 셋팅=======
 		evt.stream.play = function(){
 			document.getElementById(evt.stream.id).play();
 		};
 		
+		evt.stream.stop = function(){
+			evt.stream.getTracks().forEach(function(track){
+				track.enabled = false;
+			});
+		};
+		
+		evt.stream.oninactive = function(event){
+			// console.log(event);
+			// connection.send({inactive:true, streamid : event.srcElement.streamid});
+		}
+		
 		rtc.resolutionSetting(evt.stream);
 		// =====================
 		
-		if(!!!enables.video && !!!enables.peerVideo && !!!enables.screen){
-			rtc.onstream(event);
-			return;
-		}
-		
-		var contain;
-
-		contain = !!evt.stream.isScreen ? rtc.enables.screen || rtc.enables.screen.exact : evt.type === 'remote' ? rtc.enables.peerVideo || rtc.enables.video : rtc.enables.video;
-		
-		if(!!!contain) {
-			rtc.onstream(evt);
-			return;
-		}else if(contain instanceof jQuery){
-			contain = contain[0];
-		}
-		
-		
-		if(contain instanceof HTMLDivElement){
-			console.error(evt);
-			contain.appendChild(evt.mediaElement);
-		}else if(contain instanceof HTMLVideoElement){
-			contain.srcObject = evt.stream;
-			contain.id = evt.stream.id;
-		}else {
-			console.error('contain(video, peerVideo, screen) type only Element', contain);
-		}
-		
-		evt.stream.play();
+		rtc.onstream(rtc, evt);
 	};
 
 	this.onopen = function(event) {
-		if (designer.pointsLength <= 0) {
+		if (!!rtc.designer && rtc.designer.pointsLength <= 0) {
 			setTimeout(function() {
-				this.conn.send('plz-sync-points');
+				rtc.conn.send('plz-sync-points');
 			}, 1000);
 		}
 	};
 
 	this.onleave = function(event){
 		// event.userid, event.extra // 한번 호출
+		if(!!rtc.msr){
+			rtc.msrWatchStop();
+		}
 	}
 
 	this.onstreamended = function(event) {
+
 		if (!event.mediaElement) {
 			event.mediaElement = document.getElementById(event.streamid);
 		}
 		
 		if (!event.mediaElement || !event.mediaElement.parentNode) {
-			location.reload();
+			// location.reload();
+			event.stream.stop();
 			return;
 		}
 		
@@ -204,6 +210,48 @@ function RTC(enables){
 		alert('동일 아이디 접속자가 있습니다.');
 	}
 	
+	this.messageHandler = function(event){
+		
+		console.log(event);
+		
+		if (event.data.streamEnabled){
+			if(event.data.isVideo){
+				rtc.conn.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getVideoTracks();
+						tracks[0].enabled = event.data.enabled;
+					}
+				});
+			}else {
+				// @@ 음소거
+				rtc.conn.attachStreams.forEach(function(localStream){
+					if(event.data.id === localStream.id){
+						var tracks = localStream.getAudioTracks();
+						tracks[0].mute = event.data.enabled;
+					}
+				});	
+			}
+			return;
+		}
+		
+		if (event.data === 'plz-sync-points' && !!rtc.designer) {
+			rtc.designer.sync();
+			return;
+		}
+		
+		if (event.data.canvas && !!rtc.designer) {
+			rtc.designer.syncData(event.data.data);
+		}
+		
+		if (event.data.chat){
+			var chatForm = "<label> 상대 : " + event.data.data + "</label></br>";
+			var chatContain = document.getElementById("chat-contents");
+			
+			chatContain.innerHTML += chatForm;
+			chatContain.scrollTop = chatContain.scrollHeight - chatContain.clientHeight;
+		}
+	}
+	
 }
 
 
@@ -224,7 +272,11 @@ RTC.prototype.onBrowserNotSupportError = function(errors){
 
 RTC.prototype.onMediaCaptureError = function(error, isAudio){
 	if(error === 'AbortError'){
-		alert("카메라가 다른 장치에서 이미 사용 중 입니다.");
+		if(!!isAudio){
+			alert("오디오를 불러오는 중 중단 되었습니다.");
+		}else {
+			alert("카메라가 다른 장치에서 이미 사용 중 입니다.");
+		}
 	}else if(error === 'NotAllowedError'){
 		alert("카메라에 대한 권한을 해제 후 사용가능 합니다.");
 	}else if(error === 'NotFoundError'){
@@ -282,7 +334,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 		}
 	}
 	
-	if(( !!enables.recorde || !!enables.recordeWatch ) && window.MediaRecorder === undefined) {
+	if((!!enables.recorde || !!enables.recordeWatch ) && window.MediaRecorder === undefined) {
 		notSupportList.push('recorde');
 		if(!!enables.recorde.exact || !!enables.recordeWatch){
 			notSupportCriticalList.push('recorde');
@@ -290,7 +342,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	}
 	
 
-	if(enables.dataChannel && !!!new RTCPeerConnection().createDataChannel){
+	if(!!enables.dataChannel && !!!new RTCPeerConnection().createDataChannel){
 		notSupportList.push('dataChannel');
 		if(!!enables.dataChannel.exact || !!enables.canvas.exact || !!enables.fileShare.exact){
 			notSupportCriticalList.push('dataChannel');
@@ -317,47 +369,25 @@ RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-// #################################################################
-// #################################################################
-RTC.prototype.openOrJoin = function(userid, roomid){
+RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	
 	var rtc = this;
 	
-	// userid == roomid ? super : user
-	if(!!userid && !!!roomid){
-		rtc.conn.userid = userid;
-		rtc.conn.sessionid = userid;
-		
-		rtc.permission = 'super';
-	}else if(!!roomid){
-		rtc.conn.sessionid = roomid;
-		rtc.permission = 'user';
-		
-		if(!!userid){
-			rtc.conn.userid = userid;
-			if(userid==roomid){
-				rtc.permission = 'super';
-			}
-		}
-	}else if(!!!userid && !!!roomid){
-		rtc.conn.sessionid = conn.userid;
-		
-		rtc.permission = 'super';
-	}else {
-		console.error(userid, roomid,);
+	rtc.permission = permission;
+	
+	if(!!!permission){
+		alert('Not Permission Is Null');
+		return;
 	}
+	
+	if(userid === roomid){
+		alert('user != roomid');
+		return;
+	}
+	
+	rtc.conn.userid = userid;
+	
+	rtc.conn.sessionid = roomid;
 	
 	rtc.beforeOpenOrJoin(function(data){
 		
@@ -376,7 +406,7 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 	
 	var errors = rtc.browserNotSupportErrorHandler();
 	
-	if(errors.length !== 0){			
+	if(errors.length !== 0){
 		alert('접속이 불가능 합니다.');
 		console.log("Not Working List : " + errors);
 		callback('return');
@@ -397,9 +427,9 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		
 		rtc.conn.attachStreams = [stream];
 		
-		rtc.streams[stream.id] = stream;
+		rtc.video = stream;
 		
-		if(!!rtc.streams && !!rtc.enables.setting){
+		if(!!rtc.video && !!rtc.enables.setting){
 		
 			rtc.deviceSetting(stream);
 			
@@ -416,8 +446,236 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 RTC.prototype.afterOpenOrJoin = function(stream){
 	var rtc = this;
 	
+	if(!!rtc.enables.fileShare && rtc.notSupportList.indexOf('dataChannel') === -1){
+		rtc.fileShareSetting();
+	}
+	
+	if(!!rtc.enables.canvas && rtc.notSupportList.indexOf('dataChannel') === -1){
+		rtc.canvasSetting();
+	}
 
 }
+
+RTC.prototype.screenShare = function(){
+	
+	var rtc = this;
+	
+	// @@ 일반유저 또한 스크린 공유 가능 ??...
+	// if(!!rtc.enables.superControl && rtc.permission !== 'super'){
+		// alert('스크린 공유는 방장 권한입니다.');
+		// return;
+	// }
+	
+	rtc.getDisplayMedia(function(newStream){
+		
+		if(!!!rtc.screen){
+
+			newStream.isScreen = true;
+			
+			rtc.screen = newStream;
+			
+			rtc.setstream(newStream);
+			
+			rtc.conn.addStream(newStream);
+			
+			if(!!rtc.msr){
+				rtc.msr.addStream(newStream);				
+			}
+			
+		}else {
+	
+			var oldVideoTrack = rtc.screen.getVideoTracks()[0];
+			var newVideoTrack = newStream.getVideoTracks()[0];
+			
+			var oldAudioTrack = rtc.screen.getAudioTracks()[0];
+			var newAudioTrack = newStream.getAudioTracks()[0];
+			
+			rtc.conn.replaceTrack(oldVideoTrack, newVideoTrack, null, true);
+			
+			rtc.screen.removeTrack(oldVideoTrack);
+			
+			rtc.screen.addTrack(newVideoTrack);
+			
+			oldVideoTrack.enabled = false;
+			
+			oldVideoTrack.stop();
+			
+			if(!!oldAudioTrack){
+				
+				if(!!newAudioTrack){
+					
+					rtc.conn.replaceTrack(oldAudioTrack, newAudioTrack);
+					
+					rtc.screen.removeTrack(oldAudioTrack);
+					
+					rtc.screen.addTrack(newAudioTrack);
+					
+					oldAudioTrack.enabled = false;
+					
+					oldAudioTrack.stop();
+				}else {
+					
+					rtc.screen.removeTrack(oldAudioTrack);
+					
+					oldAudioTrack.enabled = false;
+					
+					oldAudioTrack.stop();
+				}
+			} else if(!!newAudioTrack){
+				rtc.screen.addTrack(newAudioTrack);
+				
+				newAudioTrack.start();
+			}
+		}
+	});
+}
+
+RTC.prototype.fileShare = function(){
+	
+	var rtc = this;
+	
+	var fileSelector = new FileSelector();
+	
+	fileSelector.selectSingleFile(function(file) {
+		rtc.conn.send(file);
+	});
+}
+
+RTC.prototype.streamEnabled = function(videoElement, isVideo){
+	
+	var rtc = this;
+	
+	var enabled = false;
+	
+	videoElement = videoElement[0] || videoElement;
+	
+	if(!!rtc.enables.superControl && rtc.permission === 'user' && !!rtc.video && rtc.video.id !== videoElement.id && !!rtc.screen && rtc.screen.id !== videoElement.id){
+		
+		alert('스트림 제어는 방장 권한 입니다.');
+		
+		return;
+	}
+	
+	if(isVideo){
+		
+		var track = videoElement.srcObject.getVideoTracks()[0]
+		
+		track.enabled = !track.enabled;
+		
+		enabled = track.enabled;
+	}else {
+		var track = videoElement.srcObject.getAudioTracks()[0]
+		
+		// @@ 음소거 mute = true || false;
+		enabled = track.mute;
+	}
+	
+	rtc.conn.send({
+		streamEnabled : true,
+		id: videoElement.id,
+		isVideo : isVideo,
+		enabled: enabled
+	});
+}
+
+RTC.prototype.fileShareSetting = function(){
+	
+	var rtc = this;
+	
+	rtc.enables.fileShare = rtc.enables.fileShare.exact || rtc.enables.fileShare;
+	
+	if(rtc.enables.fileShare instanceof jQuery){
+		rtc.enables.fileShare = rtc.enables.fileShare[0];
+	}
+	
+	rtc.conn.filesContainer = rtc.enables.fileShare;
+}
+
+RTC.prototype.canvasSetting = function(){
+	
+	var rtc = this;
+	
+	var designer = new CanvasDesigner();
+		
+	designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
+	designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+	
+	designer.setSelected('pencil');
+	
+	designer.setTools({
+		pencil: true,
+		eraser: true,
+		image: false,
+		pdf: false,
+		text: false,
+		line: false,
+		arrow: false,
+		dragSingle: false,
+		dragMultiple: false,
+		arc: false,
+		rectangle: false,
+		quadratic: false,
+		bezier: false,
+		marker: false,
+		zoom: false,
+		lineWidth: false,
+		colorsPicker: true,
+		extraOptions: false,
+		code: false,
+		undo: false
+	});
+		
+	rtc.enables.canvas = rtc.enables.canvas.exact || rtc.enables.canvas;
+	
+	if(rtc.enables.canvas instanceof jQuery){
+		rtc.enables.canvas = rtc.enables.canvas[0];
+	}
+
+	designer.appendTo(rtc.enables.canvas);
+	
+	designer.addSyncListener(function(data) {
+		connection.send({canvas: true, data: data});
+	});
+	
+	rtc.designer = designer;
+	
+}
+
+RTC.prototype.msrWatchStart = function(){
+	
+	var rtc = this;
+	
+	var streams = [rtc.video, rtc.screen];
+			
+	rtc.conn.streamEvents.selectAll().forEach(function(event) {
+		streams.push(event.stream);
+	});
+	
+	multiStreamRecorder = new MultiStreamRecorder(streams);
+		
+	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+	
+	multiStreamRecorder.ondataavailable = function (blob) {
+		// connection.socket.emit('uploadFile', {data:blob});
+		multiRecordeTempUrl(blob);
+	};
+	
+	multiStreamRecorder.start(rtc.recordeWatchTime);
+	
+	rtc.msr = multiStreamRecorder;
+	
+}
+
+RTC.prototype.msrWatchStop = function(){
+	var rtc = this;
+	
+	if(!!rtc.msr && rtc.msr.length !==0){
+		rtc.msr.stop();
+	}
+
+	rtc.msr = null;
+}
+
 
 RTC.prototype.deviceSetting = function(stream){
 	var rtc = this;
@@ -507,6 +765,7 @@ RTC.prototype.deviceSetting = function(stream){
 
 RTC.prototype.deviceChange = function(stream, deviceId, kind){
 	var rtc = this;
+	
 	var constraints;
 	var isVideo = true;
 	var oTrack;
@@ -518,6 +777,8 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		if(!!element && element.sinkId !== 'undefined'){
 			element.setSinkId(deviceId).then(function(){
 				rtc.deviceSetting(stream);
+			}).catch(function(error){
+				rtc.mediaCaptureErrorHandler(error, true);
 			});
 		}
 		
@@ -675,6 +936,10 @@ RTC.prototype.RMCEventHandler = function(){
 	rtc.conn.onstreamended = rtc.onstreamended;
 	
 	rtc.conn.onUserIdAlreadyTaken = rtc.onUserIdAlreadyTaken;
+	
+	if(!!rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1){
+		rtc.conn.onmessage = rtc.messageHandler;
+	}
 }
 
 
@@ -682,7 +947,7 @@ RTC.prototype.setContains = function(contains){
 	this.enables = contains;
 }
 
-RTC.prototype.getUserMedia = function(constraints, kind, callback){	
+RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	
 	var rtc = this;
 	
@@ -719,17 +984,100 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	}
 }
 
+RTC.prototype.getDisplayMedia = function(callback){
+	if(navigator.mediaDevices.getDisplayMedia){
+		navigator.mediaDevices.getDisplayMedia({ 
+			screen: true
+		}).then(function(stream){
+			callback(stream)
+		}).catch(function(error){
+			rtc.mediaCaptureErrorHandler(error, false);
+		});
+	}else if(navigator.userAgent.indexOf('Chrome') !== -1){
+		getChromeExtensionStatus('hgpahehaffcbhjfccbhmdfehkokciibh', function(status) {
+			if(status == 'installed-enabled') {
+				sourceId =  null;
+				// chrome extension is installed & enabled.
+				getScreenConstraints(function(error, screen_constraints) {
+					if (error) {
+						// alert(error);
+						console.log(error);
+						return 
+					}
 
-
-
+					if(screen_constraints.canRequestAudioTrack) {
+						navigator.mediaDevices.getUserMedia({
+							video: screen_constraints,
+							audio: screen_constraints
+						})
+						.then(function(stream) {
+							callback(stream);
+						}).catch(function(error){
+							rtc.mediaCaptureErrorHandler(error, false);
+						});
+					}else {
+						navigator.mediaDevices.getUserMedia({
+							video: screen_constraints
+						})
+						.then(function(stream) {
+							callback(stream);
+						}).catch(function(error){
+							rtc.mediaCaptureErrorHandler(error, false);
+						});
+					}
+				}, true);
+			}
+			
+			if(status == 'installed-disabled') {
+				// chrome extension is installed but disabled.
+			}
+			
+			if(status == 'not-installed') {
+				// chrome extension is not installed
+				var isInstall = confirm("스크린 공유를 지원하지 않는 브라우저 입니다. \n해당 브라우저에서 스크린공유를 원하실 경우 확장프로그램을 설치 하셔야 합니다. \n설치 하시겠습니까?");
+				if(isInstall){
+					window.parent.location.href = 'https://chrome.google.com/webstore/detail/ebsw-screencapturing/hgpahehaffcbhjfccbhmdfehkokciibh?authuser=1';
+				}
+			}
+			
+			if(status == 'not-chrome') {
+				// using non-chrome browser
+				alert('확장프로그램을 설치 할 수 없는 브라우저 입니다.');
+			}
+		});
+	} else {
+		alert('스크린공유를 지원하지 않는 브라우저 입니다.');
+	}
+}
 
 
 
 
 // !rtc.enables.video && !rtc.enables.peerVideo && !rtc.enables.screen 
 // NOT FOUND Override Event Method
-RTC.prototype.onstream = function(event){
+RTC.prototype.onstream = function(rtc, event){
 	
+	var enables = rtc.enables;
+	
+	var contain;
+
+	contain = !!event.stream.isScreen ? rtc.enables.screen.exact || rtc.enables.screen : event.type === 'remote' ? rtc.enables.peerVideo || rtc.enables.video : rtc.enables.video;
+	
+	if(contain instanceof jQuery){
+		contain = contain[0];
+	}
+	
+	
+	if(contain instanceof HTMLDivElement){
+		contain.appendChild(event.mediaElement);
+	}else if(contain instanceof HTMLVideoElement){
+		contain.srcObject = event.stream;
+		contain.id = event.stream.id;
+	}else {
+		console.error('contain(video, peerVideo, screen) type only Element', contain);
+	}
+	
+	event.stream.play();
 }
 
 // event.selects == Select ElementType, event.values == ArrayType
@@ -764,6 +1112,8 @@ RTC.prototype.ondevicesetting = function(event){
 	rtc.enables.setting.appendChild(event.elements.audioO);
 }
 
+// event.selects == Select ElementType, event.values == ArrayType
+// Custom Override Event Method
 RTC.prototype.onresolutionsetting = function(event){
 	var rtc = this;
 	
@@ -783,6 +1133,21 @@ RTC.prototype.onresolutionsetting = function(event){
 	}
 	
 	rtc.enables.setting.appendChild(event.elements.select);
+}
+
+
+
+
+
+
+
+// Temp
+RTC.prototype.multiRecordeTempUrl = function(blob){
+	var url = URL.createObjectURL(blob);
+	var html = "<a href='" + url + "' '> 녹화파일 </a><br/>";
+	var contain = document.getElementById('url-server');
+	contain.innerHTML += html;
+	contain.scrollTop = contain.scrollHeight - contain.clientHeight;
 }
 
 
