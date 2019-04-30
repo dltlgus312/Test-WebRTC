@@ -366,7 +366,7 @@
 			multiStreamRecorder = new MultiStreamRecorder(streams);
 			multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 			
-			multiStreamRecorder.ondataavailable = function (blob) {
+			multiStreamRecorder.ondataavailable = function(blob){
 				<!-- connection.socket.emit('uploadFile', {data:blob}); -->
 				multiRecordeTempUrl(blob);
 			};

@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html>
 <head>
 
@@ -17,7 +16,10 @@
 	<script src="/node_modules/webrtc-screen-capturing/Screen-Capturing.js"></script>
 	<script src="/socket.io/socket.io.js"></script>
 
+
+
 	<script src="/js/RTC.js"></script>
+	
 	<link rel="stylesheet" href="/css/layout.css">
 	 
 	 
@@ -55,28 +57,22 @@
 
 
 			$('#screen-sound').click(function(){
-				var element = document.getElementById(rtc.screen.id);
-				rtc.streamEnabled(element, false);
+				rtc.stopOrStart(rtc.screen.id, false);
 			});
 			$('#screen-display').click(function(){
-				var element = document.getElementById(rtc.screen.id);
-				rtc.streamEnabled(element, true);
+				rtc.stopOrStart(rtc.screen.id, true);
 			});
 			$('#my-sound').click(function(){
-				var element = document.getElementById(rtc.video.id);
-				rtc.streamEnabled(element, false);
+				rtc.stopOrStart(rtc.video.id, false);
 			});
 			$('#my-display').click(function(){
-				var element = document.getElementById(rtc.video.id);
-				rtc.streamEnabled(element, true);
+				rtc.stopOrStart(rtc.video.id, true);
 			});
 			$('#peer-sound').click(function(){
-				var element = document.getElementById(rtc.peerStreams[0].id);
-				rtc.streamEnabled(element, false);
+				rtc.stopOrStart(rtc.remoteStreams[0].id, false);
 			});
 			$('#peer-display').click(function(){
-				var element = document.getElementById(rtc.peerStreams[0].id);
-				rtc.streamEnabled(element, true);
+				rtc.stopOrStart(rtc.remoteStreams[0].id, true);
 			});
 			
 			
@@ -90,15 +86,16 @@
 				<!-- video : $('#fileshare-container'), -->
 				video : $('#my-video'),
 				peerVideo : $('#peer-video'),
-				screen : { exact : $('#screen-video') },
 				setting : $('#setting-container'),
-				fileShare : $('#fileshare-container'),
-				canvas : $('#widget-container')
+				screen : { exact : $('#screen-video') },
+				fileShare : { exact: $('#fileshare-container') },
+				canvas : { exact: $('#widget-container') },
+				monitoring: true
 				<!-- dataChannel : {exact: true} -->
 			};
 			
 			rtc = new RTC(enables);
-			rtc.openOrJoin('a', 'c', 'super');
+			rtc.openOrJoin(null, 'c', 'super');
 			<!-- rtc.openOrJoin('b', 'c', 'user'); -->
 		});
 	</script>
