@@ -10,7 +10,7 @@
 // enables.recorde = true; (exact)
 // enables.monitoring = true; >> 방장 녹화 (감시용)
 
-// exact >> '필수' 조건이 되며, 지원이 안되는 브라우저일경우 에러
+// exact는 '필수' 조건이 되며, 지원이 안되는 브라우저일경우 에러
 
 function RTC(enables){
 	
@@ -130,7 +130,7 @@ function RTC(enables){
 		
 		if(!!!event.type){
 			
-			// event : 로컬 스트림 >> 원격스트림과 규격 통일
+			// event : 로컬 & 원격 스트림 >> 두 스트림 규격 통일
 			
 			evt = [];
 			
@@ -155,7 +155,7 @@ function RTC(enables){
 			evt.mediaElement = video;
 			
 			if(!!rtc.enables.monitoring && rtc.permission === 'super' && rtc.notSupportList.indexOf('recorde') === -1 && !!rtc.msr){
-				// ##
+				// ## 로컬 스트림 2개이상 사용시 녹화 추가
 				rtc.msr.addStream(evt.stream);
 			}
 			
@@ -174,7 +174,7 @@ function RTC(enables){
 					
 				}else {
 					
-					// ## 원격 스트림 최초 등록 시
+					// ## 원격 스트림 최초 등록 시 녹화 시작
 					var streams = rtc.remoteStreams.slice(0);
 					
 					if(!!rtc.video){
@@ -202,7 +202,7 @@ function RTC(enables){
 			});
 		};
 		
-		// 공유 중지 ( Run Time )
+		// Run Time Stream 공유 중지
 		if(evt.type === 'local'){
 			
 			evt.stream.onactive = function(event){
@@ -217,13 +217,16 @@ function RTC(enables){
 		
 		}
 		
-		rtc.resolutionSetting(evt.stream);
+		if(!!rtc.enables.setting){
+			rtc.resolutionSetting(evt.stream);
+		}
 		
 		rtc.onstream(rtc, evt);
 	};
 
+	// @@ 데이터 채널 사용불가시..?
 	this.onopen = function(event) {
-		if (!!rtc.designer && rtc.designer.pointsLength <= 0) {
+		if (!!rtc.designer && rtc.designer.pointsLength <= 0 && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
 			setTimeout(function() {
 				rtc.conn.send('plz-sync-points');
 			}, 1000);
@@ -236,6 +239,8 @@ function RTC(enables){
 		
 	}
 
+	// Peer Disconnect Event (각 스트림 별)
+	// Parameter Data : event.stream, event.mediaElement (video)
 	this.onstreamended = function(event) {
 		
 		rtc.remoteStreams.splice(event.stream, 1);
@@ -246,10 +251,13 @@ function RTC(enables){
 			rtc.msr = null;
 		}
 		
-		var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
-		
-		if(!!select && !!select.parentNode){
-			select.parentNode.removeChild(select);
+		if(!!rtc.enables.setting){
+			// 화직 선택기 삭제
+			var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
+			
+			if(!!select && !!select.parentNode){
+				select.parentNode.removeChild(select);
+			}
 		}
 
 		if (!event.mediaElement) {
@@ -257,7 +265,6 @@ function RTC(enables){
 		}
 		
 		if (!event.mediaElement || !event.mediaElement.parentNode) {
-			// location.reload();
 			
 			event.stream.stop();
 			
@@ -474,12 +481,15 @@ RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	
 	rtc.beforeOpenOrJoin(function(data){
 		
+		// browserNotSupportErrorHandler return
 		if(data === 'return'){
 			return;
 		}
 		
 		rtc.conn.openOrJoin(rtc.conn.sessionid);
+		
 		rtc.afterOpenOrJoin(data);
+		
 	});
 }
 
@@ -490,20 +500,28 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 	var errors = rtc.browserNotSupportErrorHandler();
 	
 	if(errors.length !== 0){
+		// notSupportCriticalList 목록에 따른 에러 발생 = return
 		alert('접속이 불가능 합니다.');
-		console.log("Not Working List : " + errors);
+		console.error("Not Working List : " + errors);
 		callback('return');
 		return ;
 	}
 	
+	// RTCMultiConnection API 이벤트 등록
+	rtc.RMCEventHandler();
+	
+	// 브라우저 최초 접속시 navigator.ondevicechange 
+	// 이벤트가 자동 발생 하는 에러 방지용 변수
+	rtc.initConnection = true;
 	
 	var constraints = {
+		// 기본화질 등록 > 지원불가한 브라우저는 아래의 값에 따라 유사한 값을 선택 생성
 		video: rtc.defResolution
 	};
 	
-	rtc.RMCEventHandler();
-	
-	function success(stream){
+	rtc.getUserMedia(constraints, 'allinput', function(stream){
+		
+		rtc.initConnection = false;
 		
 		stream.isVideo = true;
 		
@@ -514,9 +532,10 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		rtc.video = stream;
 		
 		if(!!rtc.video && !!rtc.enables.setting){
-		
+			
 			rtc.deviceSetting(stream);
 			
+			// @@ 장치 변경 이벤트 (스피커 처리 필요)
 			navigator.mediaDevices.ondevicechange = function (event){
 				if(!!stream.getAudioTracks()[0]){					
 					rtc.deviceChange(stream, stream.getAudioTracks()[0].getSettings().deviceId, 'audioinput');
@@ -529,13 +548,7 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		}
 		
 		callback(stream);
-	}
-	
-	navigator.mediaDevices.ondevicechange = function (event){
-		rtc.getUserMedia(constraints, 'allinput', success);
-	};
-	
-	rtc.getUserMedia(constraints, 'allinput', success);
+	});		
 }
 
 RTC.prototype.afterOpenOrJoin = function(stream){
@@ -575,7 +588,6 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 // Configual Setting
 //
 //##############################################
-
 RTC.prototype.setContains = function(contains){
 	this.enables = contains;
 }
@@ -663,6 +675,7 @@ RTC.prototype.canvasSetting = function(){
 	
 }
 
+// 장치 선택 셀렉터
 RTC.prototype.deviceSetting = function(stream){
 	var rtc = this;
 
@@ -755,6 +768,7 @@ RTC.prototype.deviceSetting = function(stream){
 	});
 }
 
+// 화질 선택 셀렉터
 RTC.prototype.resolutionSetting = function(stream){
 	
 	var optimalList = [], isOpt = false;
@@ -862,20 +876,23 @@ RTC.prototype.resolutionSetting = function(stream){
 //##############################################
 RTC.prototype.recording = function(streams, intervalTime){
 			
-	// 모니터링
+	// 모니터링 & 녹화
 	
 	var multiStreamRecorder = new MultiStreamRecorder(streams);
 	
 	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 	
 	multiStreamRecorder.ondataavailable = function(blob){
-		// @@ 파일명 
+
+		// @@ 파일명
+		
 		// rtc.conn.socket.emit('uploadFile', {data:blob});
 		
-		// @@ 임시
 		if(!!!intervalTime || intervalTime == 0){
+			// @@ 임시 모니터링
 			rtc.multiRecordeTempUrl(blob, 'local');
 		}else {			
+			// @@ 임시 녹화
 			rtc.multiRecordeTempUrl(blob, 'server');
 		}
 	};
@@ -897,32 +914,58 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	var rtc = this;
 	
 	if(kind === 'audioinput'){
-		navigator.mediaDevices.getUserMedia(constraints)
-		.then(function(audioStream){				
+		
+		navigator.mediaDevices.getUserMedia(constraints).then(function(audioStream){
+			
 			callback(audioStream);
+			
 		}).catch(function(error){
+			
 			rtc.mediaCaptureErrorHandler(error, true);
+			
 		});
-	}else if(kind === 'videoinput' || kind === 'allinput'){
-		navigator.mediaDevices.getUserMedia(constraints)
-		.then(function(mediaStream){
+		
+	} else if(kind === 'videoinput' || kind === 'allinput'){
+		
+		navigator.mediaDevices.getUserMedia(constraints).then(function(mediaStream){
+			
 			if(kind === 'allinput'){
+				
 				navigator.mediaDevices.getUserMedia({
 					audio: {
 						echoCancellation: true
 					}
-				}).then(function(audioStream){				
+				}).then(function(audioStream){
+					
 					mediaStream.addTrack(audioStream.getAudioTracks()[0]);
+					
 					callback(mediaStream);
+					
 				}).catch(function(error){
+					
 					rtc.mediaCaptureErrorHandler(error, true);
+					
 					callback(mediaStream);
+					
 				});
-			}else {
+				
+			} else {
 				callback(mediaStream);
 			}
+			
 		}).catch(function(error){
+			
 			rtc.mediaCaptureErrorHandler(error, false);
+			
+			if(rtc.initConnection){
+				
+				// 브라우저 최초접속 에러방지
+				navigator.mediaDevices.ondevicechange = function (event){
+					rtc.openOrJoin(rtc.conn.userid, rtc.conn.sessionid, rtc.permission);
+				};
+				
+			}
+			
 		});
 	}else {
 		console.error('audioinput, videoinput, allinput 중 1택');
@@ -931,19 +974,28 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 
 RTC.prototype.getDisplayMedia = function(callback){
 	if(navigator.mediaDevices.getDisplayMedia){
+		
 		navigator.mediaDevices.getDisplayMedia().then(function(stream){
+			
 			callback(stream)
+			
 		}).catch(function(error){
+			
 			rtc.mediaCaptureErrorHandler(error, false);
+			
 		});
+		
 	}else if(navigator.userAgent.indexOf('Chrome') !== -1){
+		
 		getChromeExtensionStatus('hgpahehaffcbhjfccbhmdfehkokciibh', function(status) {
+			
 			if(status == 'installed-enabled') {
-				sourceId =  null;
-				// chrome extension is installed & enabled.
+				
+				sourceId =  null; // 스크린 재공유 Screen-Capturing sourceId 초기화
+				
 				getScreenConstraints(function(error, screen_constraints) {
+					
 					if (error) {
-						// alert(error);
 						console.log(error);
 						return 
 					}
@@ -952,23 +1004,22 @@ RTC.prototype.getDisplayMedia = function(callback){
 						navigator.mediaDevices.getUserMedia({
 							video: screen_constraints,
 							audio: screen_constraints
-						})
-						.then(function(stream) {
+						}).then(function(stream) {
 							callback(stream);
 						}).catch(function(error){
 							rtc.mediaCaptureErrorHandler(error, false);
 						});
-					}else {
+					} else {
 						navigator.mediaDevices.getUserMedia({
 							video: screen_constraints
-						})
-						.then(function(stream) {
+						}).then(function(stream) {
 							callback(stream);
 						}).catch(function(error){
 							rtc.mediaCaptureErrorHandler(error, false);
 						});
 					}
 				}, true);
+				
 			}
 			
 			if(status == 'installed-disabled') {
@@ -988,6 +1039,7 @@ RTC.prototype.getDisplayMedia = function(callback){
 				alert('확장프로그램을 설치 할 수 없는 브라우저 입니다.');
 			}
 		});
+		
 	} else {
 		alert('스크린공유를 지원하지 않는 브라우저 입니다.');
 	}
@@ -1005,11 +1057,13 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		var element = document.getElementById(stream.streamid);
 		
 		if(!!element && element.sinkId !== 'undefined'){
+			
 			element.setSinkId(deviceId).then(function(){
 				rtc.deviceSetting(stream);
 			}).catch(function(error){
 				rtc.mediaCaptureErrorHandler(error, true);
 			});
+			
 		}
 		
 		return;
@@ -1123,9 +1177,11 @@ RTC.prototype.screenShare = function(){
 		}else {
 			
 			var oldVideoTrack = rtc.screen.getVideoTracks()[0];
+			
 			var newVideoTrack = newStream.getVideoTracks()[0];
 			
 			var oldAudioTrack = rtc.screen.getAudioTracks()[0];
+			
 			var newAudioTrack = newStream.getAudioTracks()[0];
 			
 			rtc.conn.replaceTrack(oldVideoTrack, newVideoTrack, null, true);
@@ -1197,18 +1253,28 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		if(isVideo){
 				
 			if(!!rtc.video && streamId === rtc.video.streamid){
+				
 				rtc.video.getVideoTracks()[0].enabled = enabled;
-			}else if(!!rtc.screen && streamId === rtc.screen.streamid){
+				
+			} else if(!!rtc.screen && streamId === rtc.screen.streamid){
+				
 				rtc.screen.getVideoTracks()[0].enabled = enabled;
-			}else {
+				
+			} else {
+				
 				rtc.remoteStreams.forEach(function(stream){
+					
 					if(streamId === stream.streamid){
+						
 						stream.getVideoTracks()[0].enabled = enabled;
+						
 					}
+					
 				});
+				
 			}
 
-		}else {
+		} else {
 			// @@ 음소거
 			// rtc.conn.attachStreams.forEach(function(localStream){
 				// if(streamId === localStream.id){
@@ -1230,9 +1296,13 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 			var track = videoElement.srcObject.getVideoTracks()[0]
 			
 			if(!!param && !!param.enabled){
+				
 				enabled = param.enabled;
+				
 			}else {
-				enabled = !track.enabled;			
+				
+				enabled = !track.enabled;		
+				
 			}
 			
 			track.enabled = enabled;
@@ -1297,10 +1367,15 @@ RTC.prototype.onstream = function(rtc, event){
 	}
 	
 	if(contain instanceof HTMLDivElement){
+		
 		contain.appendChild(event.mediaElement);
+		
 	}else if(contain instanceof HTMLVideoElement){
+		
 		contain.srcObject = event.stream;
+		
 		contain.id = event.stream.streamid;
+		
 	}else {
 		console.error('contain(video, peerVideo, screen) type only Element', contain);
 	}
@@ -1314,30 +1389,40 @@ RTC.prototype.ondevicesetting = function(event){
 	var rtc = this;
 	
 	for(index in event.elements){
+		
 		var select = event.elements[index]
 		
 		var element = document.getElementById(select.id);
 	
 		if(!!element){
+			
 			element.parentNode.removeChild(element);
+			
 		}
 	}
 	
 	
 	if(rtc.enables.setting instanceof jQuery){
+		
 		rtc.enables.setting = rtc.enables.setting[0];
+		
 	}else if(rtc.enables.setting instanceof HTMLDivElement){
 		
 	}else {
+		
 		console.error('enables.setting 타입이 \'HTMLDivElement\'가 아닙니다.');
+		
 		return;
 	}
 	
 	// rtc.enables.setting.innerHTML = '';
 	
 	rtc.enables.setting.appendChild(event.elements.video);
+	
 	rtc.enables.setting.appendChild(event.elements.audioI);
+	
 	rtc.enables.setting.appendChild(event.elements.audioO);
+	
 }
 
 // Parameter Data : event.selects == Select Element Type, event.values == Array Type List
@@ -1352,11 +1437,15 @@ RTC.prototype.onresolutionsetting = function(event){
 	}
 	
 	if(rtc.enables.setting instanceof jQuery){
+		
 		rtc.enables.setting = rtc.enables.setting[0];
+		
 	}else if(rtc.enables.setting instanceof HTMLDivElement){
 		
 	}else {
+		
 		console.error('enables.setting 타입이 \'HTMLDivElement\'가 아닙니다.');
+		
 		return;
 	}
 	
@@ -1387,5 +1476,6 @@ RTC.prototype.multiRecordeTempUrl = function(blob, type){
 	}
 	
 	contain.innerHTML += html;
+	
 	contain.scrollTop = contain.scrollHeight - contain.clientHeight;
 }
