@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
 
@@ -24,7 +25,7 @@
 	 
 	 
 	<script type="text/javascript">
-		var rtc;
+		var rtc, msr;
 		
 		$(document).ready(function(){
 			$('#show-canvas').click(function(){
@@ -50,7 +51,38 @@
 			$('#share-screen').click(function(){
 				rtc.screenShare();
 			});
-			$('#record-video').click(function(){});
+			$('#record-video').click(function(){
+				var ele = this;
+				if(!!msr){
+					ele.innerHTML = '녹화시작';
+					msr.stop();
+					msr = null;
+					
+					<!-- msr.stream.stop(); -->
+					
+				}else {
+					
+					<!-- msr = rtc.recording(rtc.video); -->
+					
+					ele.innerHTML = '녹화중지';
+					
+					rtc.getDisplayMedia(function(stream){
+					
+						msr = rtc.recording(stream);
+						
+						<!-- stream.oninactive = function(){ -->
+							<!-- if(!!msr){ -->
+								<!-- msr.stop(); -->
+							<!-- } -->
+							<!-- msr = null; -->
+							<!-- ele.innerHTML = '녹화시작'; -->
+						<!-- } -->
+						
+						<!-- msr.stream = stream; -->
+					});
+					
+				}
+			});
 			$('#file-select').click(function(){
 				rtc.fileShare();
 			});
@@ -75,11 +107,9 @@
 				rtc.stopOrStart(rtc.remoteStreams[0].id, true);
 			});
 			
-			
-			$('#camera-select').change(function(){})
-			$('#audio-select').change(function(){})
-			$('#speak-select').change(function(){})
-			$('#resolution-select').change(function(){})
+			$('#send').click(function(){
+				rtc.sendMessage('HI');
+			});
 			
 			
 			var enables = {
@@ -95,8 +125,13 @@
 			};
 			
 			rtc = new RTC(enables);
-			rtc.openOrJoin(null, 'c', 'super');
-			<!-- rtc.openOrJoin('b', 'c', 'user'); -->
+			
+			rtc.onMessage = function(msg){
+				alert(msg);
+			}
+			
+			<!-- rtc.openOrJoin(null, 'c', 'super'); -->
+			rtc.openOrJoin(null, 'c', 'user');
 		});
 	</script>
 	
@@ -109,21 +144,7 @@
 		</div>
 		<div id="widget-container"></div>
 		
-		<div id="setting-container">
-			<!-- <select id="camera-select"></select> -->
-			<!-- <select id="audio-select"></select> -->
-			<!-- <select id="speak-select"></select> -->
-			
-			<!-- <select id="resolution-select"> -->
-				<!-- <option id="hqvga" value="240">HqVGA</option> -->
-				<!-- <option id="qvga" value="320">QVGA</option> -->
-				<!-- <option id="hvga" value="480">HVGA</option> -->
-				<!-- <option id="nhd" value="640">NHD</option> -->
-				<!-- <option id="qhd" value="960">QHD</option> -->
-				<!-- <option id="hd" value="1280">HD</option> -->
-				<!-- <option id="fhd" value="1920">FHD</option> -->
-			<!-- </select> -->
-		</div>
+		<div id="setting-container"></div>
 	</div>
 
 

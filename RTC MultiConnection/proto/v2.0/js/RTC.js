@@ -1,15 +1,16 @@
 
 // enables.video = div || video;
 // enables.peerVideo = div || video;
+// enables.setting = div;
+
 // enables.screen = div || video; (exact)
 // enables.canvas = div; (exact)
 // enables.fileShare = div; (exact)
-// enables.setting = div;
-
-
 // enables.dataChannel = true; (exact)
 // enables.recorde = true; (exact)
 // enables.monitoring = true; >> 방장 녹화 (감시용)
+
+// exact >> '필수' 조건이 되며, 지원이 안되는 브라우저일경우 에러
 
 function RTC(enables){
 	
@@ -29,9 +30,7 @@ function RTC(enables){
 	
 	rtc.msr = null;
 	
-	rtc.msrContents = null;
-	
-	rtc.resolutionSelect = null;
+	rtc.resolutionSelect = {};
 	
 	rtc.deviceSelect = null;
 	
@@ -119,11 +118,10 @@ function RTC(enables){
 	
 		
 	//##############################################
-
+	//
 	// RTC Multi Connection Event 
-
+	//
 	//##############################################
-	
 	this.setstream = function(event) {
 		
 		console.log(event);
@@ -158,7 +156,7 @@ function RTC(enables){
 			
 			if(!!rtc.enables.monitoring && rtc.permission === 'super' && rtc.notSupportList.indexOf('recorde') === -1 && !!rtc.msr){
 				// ##
-				// rtc.msr.addStream(evt.stream);
+				rtc.msr.addStream(evt.stream);
 			}
 			
 		}else {
@@ -171,24 +169,23 @@ function RTC(enables){
 
 				if(!!rtc.msr){
 					
-					// ##
-					// rtc.msr.addStream(evt.stream);
+					// ## 원격 스트림 추가 ( 피어가 스트림을 두개 이상 사용 할 때 )
+					rtc.msr.addStream(evt.stream);
 					
 				}else {
 					
-					// ##
-					// var streams = rtc.remoteStreams.slice(0);
+					// ## 원격 스트림 최초 등록 시
+					var streams = rtc.remoteStreams.slice(0);
 					
-					// if(!!rtc.video){
-						// streams.push(rtc.video);
-					// }
-					// if(!!rtc.screen){
-						// streams.push(rtc.screen);
-					// }
+					if(!!rtc.video){
+						streams.push(rtc.video);
+					}
 					
-					// var msr = rtc.recording(streams, rtc.msrTime);
+					if(!!rtc.screen){
+						streams.push(rtc.screen);
+					}
 					
-					// rtc.msr = msr;
+					rtc.msr = rtc.recording(streams, rtc.msrTime);
 					
 				}
 			}
@@ -205,6 +202,7 @@ function RTC(enables){
 			});
 		};
 		
+		// 공유 중지 ( Run Time )
 		if(evt.type === 'local'){
 			
 			evt.stream.onactive = function(event){
@@ -246,6 +244,12 @@ function RTC(enables){
 		if(rtc.remoteStreams.length === 0 && !!rtc.msr){
 			rtc.msr.stop();
 			rtc.msr = null;
+		}
+		
+		var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
+		
+		if(!!select && !!select.parentNode){
+			select.parentNode.removeChild(select);
 		}
 
 		if (!event.mediaElement) {
@@ -297,12 +301,8 @@ function RTC(enables){
 			rtc.designer.syncData(event.data.data);
 		}
 		
-		if (event.data.chat){
-			var chatForm = "<label> 상대 : " + event.data.data + "</label></br>";
-			var chatContain = document.getElementById("chat-contents");
-			
-			chatContain.innerHTML += chatForm;
-			chatContain.scrollTop = chatContain.scrollHeight - chatContain.clientHeight;
+		if (event.data.custom){
+			rtc.onMessage(event.data.msg);
 		}
 	}
 }
@@ -325,11 +325,10 @@ function RTC(enables){
 
 
 //##############################################
-
+//
 // Error Handler
-
+//
 //##############################################
-
 RTC.prototype.onBrowserNotSupportError = function(errors){
 	errors.forEach(function(err){
 		if(err === 'all'){
@@ -408,9 +407,9 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 		}
 	}
 	
-	if((!!enables.recorde || !!enables.recordeWatch ) && window.MediaRecorder === undefined) {
+	if((!!enables.recorde || !!enables.monitoring ) && window.MediaRecorder === undefined) {
 		notSupportList.push('recorde');
-		if(!!enables.recorde.exact || !!enables.recordeWatch){
+		if((!!enables.recorde && !!enables.recorde.exact) || !!enables.monitoring){
 			notSupportCriticalList.push('recorde');
 		}
 	}
@@ -454,8 +453,6 @@ RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 // Main Start
 //
 //##############################################
-
-
 RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	
 	var rtc = this;
@@ -499,13 +496,14 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		return ;
 	}
 	
-	rtc.RMCEventHandler();
 	
 	var constraints = {
 		video: rtc.defResolution
 	};
 	
-	rtc.getUserMedia(constraints, 'allinput', function(stream){
+	rtc.RMCEventHandler();
+	
+	function success(stream){
 		
 		stream.isVideo = true;
 		
@@ -520,13 +518,24 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 			rtc.deviceSetting(stream);
 			
 			navigator.mediaDevices.ondevicechange = function (event){
-				rtc.deviceChange(stream, stream.getAudioTracks()[0].getSettings().deviceId, 'audioinput');
-				rtc.deviceChange(stream, stream.getVideoTracks()[0].getSettings().deviceId, 'videoinput');
+				if(!!stream.getAudioTracks()[0]){					
+					rtc.deviceChange(stream, stream.getAudioTracks()[0].getSettings().deviceId, 'audioinput');
+				}
+				
+				if(!!stream.getVideoTracks()[0]){
+					rtc.deviceChange(stream, stream.getVideoTracks()[0].getSettings().deviceId, 'videoinput');					
+				}
 			};
 		}
 		
 		callback(stream);
-	});
+	}
+	
+	navigator.mediaDevices.ondevicechange = function (event){
+		rtc.getUserMedia(constraints, 'allinput', success);
+	};
+	
+	rtc.getUserMedia(constraints, 'allinput', success);
 }
 
 RTC.prototype.afterOpenOrJoin = function(stream){
@@ -562,9 +571,9 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 
 
 //##############################################
-
+//
 // Configual Setting
-
+//
 //##############################################
 
 RTC.prototype.setContains = function(contains){
@@ -659,13 +668,15 @@ RTC.prototype.deviceSetting = function(stream){
 
 	navigator.mediaDevices.enumerateDevices().then(function(devices){
 		var elements = {};
-		var values = {video:[], audioI:[], audioO:[]};
+		var values = {id:null, video:[], audioI:[], audioO:[]};
 		
 		var vSelect = document.createElement('select');
 		var aiSelect = document.createElement('select');
 		var aoSelect = document.createElement('select');
 		
 		elements.id = stream.streamid;
+		values.id = stream.streamid;
+	
 		vSelect.id = stream.streamid + '_videoSelect';
 		aiSelect.id = stream.streamid + '_audioISelect';
 		aoSelect.id = stream.streamid + '_audioOSelect';
@@ -702,8 +713,12 @@ RTC.prototype.deviceSetting = function(stream){
 				if(!!vElement && vElement.sinkId !== 'undefined' && vElement.sinkId === device.deviceId){
 					option.selected = true;
 				}else if(!!vElement && vElement.sinkId !== 'undefined' && vElement.sinkId === '' && device.deviceId === 'default'){
-					vElement.setSinkId('default');
-					option.selected = true;
+					vElement.setSinkId('default').then(function(){
+						// rtc.deviceSetting(stream);
+						option.selected = true;
+					}).catch(function(error){
+						console.error('audio output error : ', error);
+					});;
 				}
 				
 			}
@@ -809,9 +824,9 @@ RTC.prototype.resolutionSetting = function(stream){
 	
 	elements.select = select;
 	
-	rtc.resolutionSelect = {elements, values};
+	rtc.resolutionSelect[stream.streamid] = {elements, values};
 	
-	rtc.onresolutionsetting(rtc.resolutionSelect);
+	rtc.onresolutionsetting(rtc.resolutionSelect[stream.streamid]);
 	
 }
 
@@ -841,38 +856,40 @@ RTC.prototype.resolutionSetting = function(stream){
 
 
 //##############################################
-
+//
 // Development Event 
-
+//
 //##############################################
-RTC.prototype.recording = function(streams, intervalTime, ondataavailable){
+RTC.prototype.recording = function(streams, intervalTime){
+			
+	// 모니터링
 	
-	if(!!intervalTime){
-		var multiStreamRecorder = new MultiStreamRecorder(streams);
+	var multiStreamRecorder = new MultiStreamRecorder(streams);
+	
+	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+	
+	multiStreamRecorder.ondataavailable = function(blob){
+		// @@ 파일명 
+		// rtc.conn.socket.emit('uploadFile', {data:blob});
 		
-		multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
-		
-		if(!!ondataavailable){
-			multiStreamRecorder.ondataavailable = ondataavailable;
-		}else {
-			multiStreamRecorder.ondataavailable = function(blob){
-				
-				console.log('monitoring data');
-				
-				rtc.conn.socket.emit('uploadFile', {data:blob});
-				// multiRecordeTempUrl(blob);
-			};			
+		// @@ 임시
+		if(!!!intervalTime || intervalTime == 0){
+			rtc.multiRecordeTempUrl(blob, 'local');
+		}else {			
+			rtc.multiRecordeTempUrl(blob, 'server');
 		}
-		
-		multiStreamRecorder.start(intervalTime);
-		
-		// @@ 주기적으로 감시되고 있는지 체크...?? 필수
-		
-		return multiStreamRecorder;
-	}else {
-		// @@ 로컬 녹화
+	};
+	
+	multiStreamRecorder.onstop = function(e){
 		
 	}
+	
+	multiStreamRecorder.start(intervalTime);
+	
+	// @@ 주기적으로 감시되고 있는지 체크...?? 필수
+	
+	return multiStreamRecorder;
+
 }
 
 RTC.prototype.getUserMedia = function(constraints, kind, callback){
@@ -914,9 +931,7 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 
 RTC.prototype.getDisplayMedia = function(callback){
 	if(navigator.mediaDevices.getDisplayMedia){
-		navigator.mediaDevices.getDisplayMedia({ 
-			screen: true
-		}).then(function(stream){
+		navigator.mediaDevices.getDisplayMedia().then(function(stream){
 			callback(stream)
 		}).catch(function(error){
 			rtc.mediaCaptureErrorHandler(error, false);
@@ -1084,7 +1099,6 @@ RTC.prototype.resolutionChange = function(stream, value){
 
 
 
-
 //##############################################
 //
 // User Event 
@@ -1176,6 +1190,7 @@ RTC.prototype.fileShare = function(){
 // 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작 이벤트 ])
 RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 	if(!!param && !!param.rtc){
+		// Remote Stream
 		var rtc = param.rtc;
 		var enabled = param.enabled;
 		
@@ -1203,6 +1218,7 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 			// });	
 		}
 	}else {
+		// Local Stream
 		var rtc = this;
 		
 		var enabled;
@@ -1236,6 +1252,13 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 			enabled: enabled
 		});
 	}
+}
+
+
+RTC.prototype.sendMessage = function(msg){
+	var rtc = this;
+	
+	rtc.conn.send({custom: true, msg: msg});
 }
 
 
@@ -1340,6 +1363,11 @@ RTC.prototype.onresolutionsetting = function(event){
 	rtc.enables.setting.appendChild(event.elements.select);
 }
 
+// Custom Message
+RTC.prototype.onMessage = function(msg){
+	
+}
+
 
 
 
@@ -1347,10 +1375,17 @@ RTC.prototype.onresolutionsetting = function(event){
 
 
 // Temp
-RTC.prototype.multiRecordeTempUrl = function(blob){
+RTC.prototype.multiRecordeTempUrl = function(blob, type){
 	var url = URL.createObjectURL(blob);
 	var html = "<a href='" + url + "' '> 녹화파일 </a><br/>";
-	var contain = document.getElementById('url-server');
+	var contain;
+	
+	if(type=='server'){
+		contain = document.getElementById('server-record');
+	}else {
+		contain = document.getElementById('local-record');
+	}
+	
 	contain.innerHTML += html;
 	contain.scrollTop = contain.scrollHeight - contain.clientHeight;
 }
