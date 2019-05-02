@@ -559,7 +559,7 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 	}
 	
 	if(!!rtc.enables.canvas && rtc.notSupportList.indexOf('dataChannel') === -1){
-		rtc.canvasSetting();
+		rtc.canvasShareSetting();
 	}
 
 }
@@ -625,7 +625,7 @@ RTC.prototype.fileShareSetting = function(){
 	rtc.conn.filesContainer = rtc.enables.fileShare;
 }
 
-RTC.prototype.canvasSetting = function(){
+RTC.prototype.canvasShareSetting = function(){
 	
 	var rtc = this;
 	
