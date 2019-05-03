@@ -1250,39 +1250,28 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		var rtc = param.rtc;
 		var enabled = param.enabled;
 		
-		if(isVideo){
-				
-			if(!!rtc.video && streamId === rtc.video.streamid){
-				
-				rtc.video.getVideoTracks()[0].enabled = enabled;
-				
-			} else if(!!rtc.screen && streamId === rtc.screen.streamid){
-				
-				rtc.screen.getVideoTracks()[0].enabled = enabled;
-				
-			} else {
-				
-				rtc.remoteStreams.forEach(function(stream){
-					
-					if(streamId === stream.streamid){
-						
-						stream.getVideoTracks()[0].enabled = enabled;
-						
-					}
-					
-				});
-				
-			}
-
+		if(!!rtc.video && streamId === rtc.video.streamid){
+			
+			isVideo ? rtc.video.getVideoTracks()[0].enabled = enabled : rtc.video.getAudioTracks()[0].enabled = enabled ;
+			
+		} else if(!!rtc.screen && streamId === rtc.screen.streamid){
+			
+			isVideo ? rtc.screen.getVideoTracks()[0].enabled = enabled : rtc.screen.getAudioTracks()[0].enabled = enabled;
+			
 		} else {
-			// @@ 음소거
-			// rtc.conn.attachStreams.forEach(function(localStream){
-				// if(streamId === localStream.id){
-					// var tracks = localStream.getAudioTracks();
-					// tracks[0].mute = enabled;
-				// }
-			// });	
+			
+			rtc.remoteStreams.forEach(function(stream){
+				
+				if(streamId === stream.streamid){
+					
+					isVideo ? stream.getVideoTracks()[0].enabled = enabled : stream.getAudioTracks()[0].enabled = enabled;
+					
+				}
+				
+			});
+			
 		}
+
 	}else {
 		// Local Stream
 		var rtc = this;
@@ -1291,29 +1280,19 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		
 		var videoElement = document.getElementById(streamId);
 		
-		if(isVideo){
+		var track = isVideo ? videoElement.srcObject.getVideoTracks()[0] : videoElement.srcObject.getAudioTracks()[0];
+		
+		if(!!param && !!param.enabled){
 			
-			var track = videoElement.srcObject.getVideoTracks()[0]
-			
-			if(!!param && !!param.enabled){
-				
-				enabled = param.enabled;
-				
-			}else {
-				
-				enabled = !track.enabled;		
-				
-			}
-			
-			track.enabled = enabled;
+			enabled = param.enabled;
 			
 		}else {
-			// @@ 음소거 mute = true || false;
 			
-			// var track = videoElement.srcObject.getAudioTracks()[0]
+			enabled = !track.enabled;		
 			
-			// enabled = track.mute;
 		}
+		
+		track.enabled = enabled;
 		
 		rtc.conn.send({
 			stopOrStart : true,
