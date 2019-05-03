@@ -31,8 +31,8 @@ function RTC(enables){
 	//##############################################
 	function importJs(enables){
 		[
-			(!!enables.record && !!enables.monitoring) ? '/node_modules/msr/MediaStreamRecorder.min.js' : ''
-			,!!enables.fileShare ? '/node_modules/fbr/FileBufferReader.min.js' : ''
+			(!!enables.record && !!enables.monitoring) ? '/node_modules/msr/MediaStreamRecorder.js' : ''
+			,!!enables.fileShare ? '/node_modules/fbr/FileBufferReader.js' : ''
 			,!!enables.canvas ? '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
 			,!!enables.canvas ? '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
 			,!!enables.screen ? '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
@@ -78,7 +78,7 @@ function RTC(enables){
 	rtc.defResolution = {
 		width: 1920,
 		height: 1080
-	}
+	};
 	
 	rtc.resolutions = [
 		// 4:3
@@ -89,7 +89,7 @@ function RTC(enables){
 		{label: 'nHD', width: 640, height: 360},
 		{label: 'HD', width: 1280, height: 720},
 		{label: 'FHD', width: 1920, height: 1080}
-	]
+	];
 	
 	
 	if(!!!enables) {
@@ -103,11 +103,11 @@ function RTC(enables){
 		enables.canvas = false;
 		enables.fileShare = false;
 		enables.setting = false;
-	}
+	};
 
 	if(!!enables.canvas || !!enables.fileShare){
 		enables.dataChannel = true;
-	}
+	};
 	
 	rtc.enables = enables;
 	
@@ -122,7 +122,7 @@ function RTC(enables){
 	//##############################################
 	var stunOption = {
 		urls: 'stun:192.168.25.4:3478'
-	}
+	};
 	
 	var turnOption = {
 		urls: 'turn:211.44.246.219:3478?transport=tcp',
@@ -132,7 +132,7 @@ function RTC(enables){
 	
 	var session = {
 		data: !!enables.dataChannel
-	}
+	};
 	
 	var conn;
 	
@@ -200,7 +200,7 @@ function RTC(enables){
 				rtc.msr.addStream(evt.stream);
 			}
 			
-		}else {
+		} else {
 			
 			// event : 원격 스트림 >> 녹화시작
 			
@@ -249,12 +249,12 @@ function RTC(enables){
 			evt.stream.onactive = function(event){
 				rtc.stopOrStart(event.target.streamid, true, { enabled : true });
 				rtc.stopOrStart(event.target.streamid, false, { enabled : true });
-			}
+			};
 			
 			evt.stream.oninactive = function(event){
 				rtc.stopOrStart(event.target.streamid, true, { enabled : false });
 				rtc.stopOrStart(event.target.streamid, false, { enabled : false });
-			}
+			};
 			
 		}else{
 		
@@ -280,7 +280,7 @@ function RTC(enables){
 	// Parameter Data : event.userid, event.extra
 	this.onleave = function(event){
 		
-	}
+	};
 
 	// Peer Disconnect Event (각 스트림 별)
 	// Parameter Data : event.stream, event.mediaElement (video)
@@ -333,7 +333,7 @@ function RTC(enables){
 		// Re join depend
 		console.error('Already Join ID: ' + useridAlreadyTaken);
 		alert('동일 아이디 접속자가 있습니다.');
-	}
+	};
 	
 	this.messageHandler = function(event){
 		// console.log(event);
@@ -354,7 +354,7 @@ function RTC(enables){
 		if (event.data.custom){
 			rtc.onMessage(event.data.msg);
 		}
-	}
+	};
 }
 
 
@@ -391,7 +391,7 @@ RTC.prototype.onBrowserNotSupportError = function(errors){
 			alert('데이터 공유를 지원하지 않는 브라우저 입니다.');
 		}
 	});
-}
+};
 
 RTC.prototype.onMediaCaptureError = function(error, isAudio){
 	if(error === 'AbortError'){
@@ -424,7 +424,7 @@ RTC.prototype.onMediaCaptureError = function(error, isAudio){
 	}else {
 		alert(error);
 	}
-}
+};
 
 RTC.prototype.browserNotSupportErrorHandler = function (){
 	
@@ -477,7 +477,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	this.onBrowserNotSupportError(notSupportCriticalList);
 	
 	return notSupportCriticalList;				
-}
+};
 
 RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 	
@@ -485,7 +485,7 @@ RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 	
 	this.onMediaCaptureError(error.name, isAudio);
 	
-}
+};
 
 
 
@@ -534,7 +534,7 @@ RTC.prototype.openOrJoin = function(userid, roomid, permission){
 		rtc.afterOpenOrJoin(data);
 		
 	});
-}
+};
 
 RTC.prototype.beforeOpenOrJoin = function(callback){
 	
@@ -592,7 +592,7 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 		
 		callback(stream);
 	});		
-}
+};
 
 RTC.prototype.afterOpenOrJoin = function(stream){
 	var rtc = this;
@@ -605,7 +605,7 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 		rtc.canvasShareSetting();
 	}
 
-}
+};
 
 
 
@@ -628,12 +628,12 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 
 //##############################################
 //
-// Configual Setting
+// Configure Setting
 //
 //##############################################
 RTC.prototype.setContains = function(contains){
 	this.enables = contains;
-}
+};
 
 RTC.prototype.RMCEventHandler = function(){
 	var rtc = this;
@@ -653,7 +653,7 @@ RTC.prototype.RMCEventHandler = function(){
 	if(!!rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1){
 		rtc.conn.onmessage = rtc.messageHandler;
 	}
-}
+};
 
 RTC.prototype.fileShareSetting = function(){
 	
@@ -666,7 +666,7 @@ RTC.prototype.fileShareSetting = function(){
 	}
 	
 	rtc.conn.filesContainer = rtc.enables.fileShare;
-}
+};
 
 RTC.prototype.canvasShareSetting = function(){
 	
@@ -675,31 +675,31 @@ RTC.prototype.canvasShareSetting = function(){
 	var designer = new CanvasDesigner();
 		
 	designer.widgetHtmlURL = '/node_modules/canvas-designer/widget.html';
-	designer.widgetJsURL = '/node_modules/canvas-designer/widget.min.js';
+	designer.widgetJsURL = '/node_modules/canvas-designer/widget.js';
 	
 	designer.setSelected('pencil');
 	
 	designer.setTools({
 		pencil: true,
 		eraser: true,
-		image: false,
-		pdf: false,
-		text: false,
-		line: false,
-		arrow: false,
-		dragSingle: false,
-		dragMultiple: false,
-		arc: false,
-		rectangle: false,
-		quadratic: false,
-		bezier: false,
-		marker: false,
-		zoom: false,
-		lineWidth: false,
+		image: true,
+		pdf: true,
+		text: true,
+		line: true,
+		arrow: true,
+		dragSingle: true,
+		dragMultiple: true,
+		arc: true,
+		rectangle: true,
+		quadratic: true,
+		bezier: true,
+		marker: true,
+		zoom: true,
+		lineWidth: true,
 		colorsPicker: true,
-		extraOptions: false,
-		code: false,
-		undo: false
+		extraOptions: true,
+		code: true,
+		undo: true
 	});
 		
 	rtc.enables.canvas = rtc.enables.canvas.exact || rtc.enables.canvas;
@@ -716,7 +716,7 @@ RTC.prototype.canvasShareSetting = function(){
 	
 	rtc.designer = designer;
 	
-}
+};
 
 // 장치 선택 셀렉터
 RTC.prototype.deviceSetting = function(stream){
@@ -792,15 +792,15 @@ RTC.prototype.deviceSetting = function(stream){
 		
 		elements.video.onchange = function(event){
 			rtc.deviceChange(stream, elements.video.options[elements.video.selectedIndex].value, 'videoinput');
-		}
+		};
 		
 		elements.audioI.onchange = function(event){
 			rtc.deviceChange(stream, elements.audioI.options[elements.audioI.selectedIndex].value, 'audioinput');
-		}
+		};
 		
 		elements.audioO.onchange = function(event){
 			rtc.deviceChange(stream, elements.audioO.options[elements.audioO.selectedIndex].value, 'audiooutput');
-		}
+		};
 		
 		rtc.deviceSelect = {elements, values};
 		
@@ -809,7 +809,7 @@ RTC.prototype.deviceSetting = function(stream){
 	}).catch(function(error){
 		console.error(error);
 	});
-}
+};
 
 // 화질 선택 셀렉터
 RTC.prototype.resolutionSetting = function(stream){
@@ -877,7 +877,7 @@ RTC.prototype.resolutionSetting = function(stream){
 	
 	select.onchange = function(event){
 		rtc.resolutionChange(stream, select.options[select.selectedIndex].value);
-	}
+	};
 	
 	elements.select = select;
 	
@@ -885,7 +885,7 @@ RTC.prototype.resolutionSetting = function(stream){
 	
 	rtc.onresolutionsetting(rtc.resolutionSelect[stream.streamid]);
 	
-}
+};
 
 
 
@@ -942,7 +942,7 @@ RTC.prototype.recording = function(streams, intervalTime){
 	
 	multiStreamRecorder.onstop = function(e){
 		
-	}
+	};
 	
 	multiStreamRecorder.start(intervalTime);
 	
@@ -950,7 +950,7 @@ RTC.prototype.recording = function(streams, intervalTime){
 	
 	return multiStreamRecorder;
 
-}
+};
 
 RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	
@@ -1013,7 +1013,7 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 	}else {
 		console.error('audioinput, videoinput, allinput 중 1택');
 	}
-}
+};
 
 RTC.prototype.getDisplayMedia = function(callback){
 	if(navigator.mediaDevices.getDisplayMedia){
@@ -1089,7 +1089,7 @@ RTC.prototype.getDisplayMedia = function(callback){
 	} else {
 		alert('스크린공유를 지원하지 않는 브라우저 입니다.');
 	}
-}
+};
 
 RTC.prototype.deviceChange = function(stream, deviceId, kind){
 	var rtc = this;
@@ -1115,12 +1115,12 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		return;
 	} else if(kind === 'audioinput'){
 		
-		constraints = {	
+		constraints = {
 			audio : {
 				deviceId: deviceId,
 				echoCancellation: true
 			}
-		}
+		};
 		
 		oTrack = stream.getAudioTracks()[0];
 		
@@ -1138,7 +1138,7 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 				width: rtc.defResolution.width,
 				height: rtc.defResolution.height
 			}
-		}
+		};
 	}
 	
 	rtc.getUserMedia(constraints, kind, function(str){
@@ -1160,7 +1160,7 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 			rtc.resolutionSetting(stream);
 		}
 	});
-}
+};
 
 // 해상도 변경
 RTC.prototype.resolutionChange = function(stream, value){
@@ -1174,7 +1174,7 @@ RTC.prototype.resolutionChange = function(stream, value){
 		width : value[0],
 		height : value[1]
 	});
-}
+};
 
 
 
@@ -1269,7 +1269,7 @@ RTC.prototype.screenShare = function(){
 			}
 		}
 	});
-}
+};
 
 RTC.prototype.fileShare = function(){
 	
@@ -1287,7 +1287,7 @@ RTC.prototype.fileShare = function(){
 	fileSelector.selectSingleFile(function(file) {
 		rtc.conn.send(file);
 	});
-}
+};
 
 // 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
 RTC.prototype.stopOrStart = function(streamId, isVideo, param){
@@ -1347,14 +1347,14 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 			enabled: enabled
 		});
 	}
-}
+};
 
 
 RTC.prototype.sendMessage = function(msg){
 	var rtc = this;
 	
 	rtc.conn.send({custom: true, msg: msg});
-}
+};
 
 
 
@@ -1378,7 +1378,6 @@ RTC.prototype.sendMessage = function(msg){
 // Override Method Event
 //
 //##############################################
-// 원격 스트림 & 로컬 스트림
 RTC.prototype.onstream = function(rtc, event){
 	
 	var enables = rtc.enables;
@@ -1406,16 +1405,16 @@ RTC.prototype.onstream = function(rtc, event){
 	}
 	
 	event.stream.play();
-}
+};
 
-// Parameter Data : event.selects == Select Element Type List, event.values == Array Type List In To List
-// 디바이스를 변경 할 수 있는 셀렉터 리스트 & 데이터 리스트
+// Parameter Data : event.selects == Type select Element List,
+//					event.values == Type Array List In To List
 RTC.prototype.ondevicesetting = function(event){
 	var rtc = this;
 	
 	for(index in event.elements){
 		
-		var select = event.elements[index]
+		var select = event.elements[index];
 		
 		var element = document.getElementById(select.id);
 	
@@ -1446,10 +1445,10 @@ RTC.prototype.ondevicesetting = function(event){
 	
 	rtc.enables.setting.appendChild(event.elements.audioO);
 	
-}
+};
 
-// Parameter Data : event.selects == Select Element Type, event.values == Array Type List
-// 해상도를 변경 할 수 있는 셀렉터 리스트 & 데이터 리스트
+// Parameter Data : event.selects == Type Select Element, 
+//					event.values == Type Array List
 RTC.prototype.onresolutionsetting = function(event){
 	var rtc = this;
 	
@@ -1473,12 +1472,12 @@ RTC.prototype.onresolutionsetting = function(event){
 	}
 	
 	rtc.enables.setting.appendChild(event.elements.select);
-}
+};
 
 // Custom Message Override
 RTC.prototype.onMessage = function(msg){
 	
-}
+};
 
 
 
@@ -1501,4 +1500,4 @@ RTC.prototype.multiRecordeTempUrl = function(blob, type){
 	contain.innerHTML += html;
 	
 	contain.scrollTop = contain.scrollHeight - contain.clientHeight;
-}
+};
