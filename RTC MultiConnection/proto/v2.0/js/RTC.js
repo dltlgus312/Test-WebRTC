@@ -12,8 +12,45 @@
 
 // exact는 '필수' 조건이 되며, 지원이 안되는 브라우저일경우 에러
 
+
+//##############################################
+//
+// Static Js Import
+//
+//##############################################
+document.write("<script type='text/javascript' src='/node_modules/webrtc-adapter/out/adapter.js'><"+"/script>"); 
+document.write("<script type='text/javascript' src='/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js'><"+"/script>"); 
+document.write("<script type='text/javascript' src='/socket.io/socket.io.js'><"+"/script>"); 
+
 function RTC(enables){
 	
+	//##############################################
+	//
+	// Dynamic Js Import
+	//
+	//##############################################
+	function importJs(enables){
+		[
+			(!!enables.record && !!enables.monitoring) ? '/node_modules/msr/MediaStreamRecorder.min.js' : ''
+			,!!enables.fileShare ? '/node_modules/fbr/FileBufferReader.min.js' : ''
+			,!!enables.canvas ? '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
+			,!!enables.canvas ? '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
+			,!!enables.screen ? '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
+		].forEach(function(src) {
+			  var script = document.createElement('script');
+			  script.async = false;
+			  script.type = "text/javascript";
+			  script.src = src;
+			  document.head.appendChild(script);
+		});
+	}
+	
+	
+	//##############################################
+	//
+	// RTC Default Setting
+	//
+	//##############################################
 	var rtc = this;
 	
 	rtc.conn = null;
@@ -55,8 +92,6 @@ function RTC(enables){
 	]
 	
 	
-	
-	
 	if(!!!enables) {
 		enables = {};
 		enables.video = false;
@@ -76,6 +111,15 @@ function RTC(enables){
 	
 	rtc.enables = enables;
 	
+	importJs(rtc.enables);
+	
+	
+	
+	//##############################################
+	//
+	// RTCMultiConnection Setting
+	//
+	//##############################################
 	var stunOption = {
 		urls: 'stun:192.168.25.4:3478'
 	}
@@ -114,9 +158,6 @@ function RTC(enables){
 	
 	
 	
-	
-	
-		
 	//##############################################
 	//
 	// RTC Multi Connection Event 
@@ -161,7 +202,7 @@ function RTC(enables){
 			
 		}else {
 			
-			// event : 원결 스트림 >> 녹화시작
+			// event : 원격 스트림 >> 녹화시작
 			
 			rtc.remoteStreams.push(event.stream);
 			
@@ -207,10 +248,12 @@ function RTC(enables){
 			
 			evt.stream.onactive = function(event){
 				rtc.stopOrStart(event.target.streamid, true, { enabled : true });
+				rtc.stopOrStart(event.target.streamid, false, { enabled : true });
 			}
 			
 			evt.stream.oninactive = function(event){
 				rtc.stopOrStart(event.target.streamid, true, { enabled : false });
+				rtc.stopOrStart(event.target.streamid, false, { enabled : false });
 			}
 			
 		}else{
@@ -252,7 +295,7 @@ function RTC(enables){
 		}
 		
 		if(!!rtc.enables.setting){
-			// 화직 선택기 삭제
+			// 화질 선택 셀렉터 삭제
 			var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
 			
 			if(!!select && !!select.parentNode){
@@ -457,7 +500,7 @@ RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 
 //##############################################
 //
-// Main Start
+// Main 
 //
 //##############################################
 RTC.prototype.openOrJoin = function(userid, roomid, permission){
@@ -510,8 +553,8 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 	// RTCMultiConnection API 이벤트 등록
 	rtc.RMCEventHandler();
 	
-	// 브라우저 최초 접속시 navigator.ondevicechange 
-	// 이벤트가 자동 발생 하는 에러 방지용 변수
+	// 브라우저 최초 접속시 navigator.ondevicechange 이벤트가 자동 발생
+	// 에러 방지용 변수
 	rtc.initConnection = true;
 	
 	var constraints = {
@@ -884,15 +927,15 @@ RTC.prototype.recording = function(streams, intervalTime){
 	
 	multiStreamRecorder.ondataavailable = function(blob){
 
-		// @@ 파일명
+		// @@ 파일명 설정
 		
 		// rtc.conn.socket.emit('uploadFile', {data:blob});
 		
 		if(!!!intervalTime || intervalTime == 0){
-			// @@ 임시 모니터링
+			// @@ 임시 모니터링 (making url)
 			rtc.multiRecordeTempUrl(blob, 'local');
 		}else {			
-			// @@ 임시 녹화
+			// @@ 임시 녹화 (making url)
 			rtc.multiRecordeTempUrl(blob, 'server');
 		}
 	};
@@ -991,7 +1034,9 @@ RTC.prototype.getDisplayMedia = function(callback){
 			
 			if(status == 'installed-enabled') {
 				
-				sourceId =  null; // 스크린 재공유 Screen-Capturing sourceId 초기화
+				// 스크린 재공유 Screen-Capturing sourceId 초기화
+				
+				sourceId =  null; 
 				
 				getScreenConstraints(function(error, screen_constraints) {
 					
@@ -1024,6 +1069,7 @@ RTC.prototype.getDisplayMedia = function(callback){
 			
 			if(status == 'installed-disabled') {
 				// chrome extension is installed but disabled.
+				// 설치는 되었으나 작동하지 않는 오류
 			}
 			
 			if(status == 'not-installed') {
@@ -1083,7 +1129,7 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 	} else if(kind === 'videoinput'){
 		oTrack = stream.getVideoTracks()[0];
 		
-		// Roll Back Setting ( 새로운 스트림이 기존의 셋팅을 유지하는 오류 )
+		// Roll Back Setting ( 새로운 스트림이 기존의 셋팅( 해상도 )을 유지하는 오류 )
 		oTrack.applyConstraints(rtc.defResolution);
 		
 		constraints = {	
@@ -1243,7 +1289,7 @@ RTC.prototype.fileShare = function(){
 	});
 }
 
-// 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작 이벤트 ])
+// 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
 RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 	if(!!param && !!param.rtc){
 		// Remote Stream
@@ -1394,8 +1440,6 @@ RTC.prototype.ondevicesetting = function(event){
 		return;
 	}
 	
-	// rtc.enables.setting.innerHTML = '';
-	
 	rtc.enables.setting.appendChild(event.elements.video);
 	
 	rtc.enables.setting.appendChild(event.elements.audioI);
@@ -1431,7 +1475,7 @@ RTC.prototype.onresolutionsetting = function(event){
 	rtc.enables.setting.appendChild(event.elements.select);
 }
 
-// Custom Message
+// Custom Message Override
 RTC.prototype.onMessage = function(msg){
 	
 }
