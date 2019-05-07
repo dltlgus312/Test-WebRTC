@@ -32,9 +32,6 @@ app.get('/', ( req, res ) => {
 	res.sendfile( __dirname + '/index.html' );
 });
 
-
-var wstream, stackUrl = [], cnt = 1;
-
 // Socket IO SETTING
 io = io(https);
 io.on( 'connection', ( socket ) => {
@@ -42,27 +39,21 @@ io.on( 'connection', ( socket ) => {
 	console.log( 'SOCKET CONNECTION' );
 	RTCMultiConnectionServer.addSocket(socket);
 	
-	socket.emit('urls', stackUrl);
-	
 	
 	socket.on('disconnect', (data) => {
 		console.log("DISCONNECTION USER");
 	});
 	
 	socket.on('uploadFile', (data) => {
-		console.log("STREAM DATA COMMING");			
-		// wstream = fs.createWriteStream( __dirname + "/temp/" + cnt + ".mp4" );
-		// wstream.write(data.data);
-		// wstream.end();
+
+		console.log("STREAM DATA COMMING");
 		
-		// var url = '/temp/' + cnt + '.mp4';	
+		var wstream = fs.createWriteStream( __dirname + "/temp/" + data.name + ".txt" );
 		
-		// io.emit('uploadURL', {url: url, cnt: cnt});
-		// stackUrl.push(url);
+		wstream.write(data.data);
 		
-		// console.log(url);
+		wstream.end();
 		
-		// cnt += 1;
 	});
 });
 
