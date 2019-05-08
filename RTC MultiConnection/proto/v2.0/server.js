@@ -3,6 +3,14 @@ var express = require( 'express' );
 var app = express( );
 var https = require('https');
 var io = require( 'socket.io' );
+
+var jsdom = require('jsdom');
+
+const {JSDOM} = jsdom;
+const dom = new JSDOM();
+const Blob = dom.window.Blob;
+const FileReader = dom.window.FileReader;
+
 var RTCMultiConnectionServer = require('rtcmulticonnection-server');
 
 var options = {
@@ -33,7 +41,32 @@ app.get('/', ( req, res ) => {
 });
 
 // Socket IO SETTING
+// io = io(https);
+// io.on( 'connection', ( socket ) => {
+	
+	// console.log( 'SOCKET CONNECTION' );
+	// RTCMultiConnectionServer.addSocket(socket);
+	
+	
+	// socket.on('disconnect', (data) => {
+		// console.log("DISCONNECTION USER");
+	// });
+	
+	// socket.on('monitoring', (data) => {
+		// var wstream = fs.createWriteStream( __dirname + "/temp/" + data.name + ".mp4" );
+		
+		// wstream.write(Buffer.alloc(new Uint8Array(result)));
+		
+		// wstream.end();
+	// });
+// });
+
+
+
+
+
 io = io(https);
+var buffers = [];
 io.on( 'connection', ( socket ) => {
 	
 	console.log( 'SOCKET CONNECTION' );
@@ -44,18 +77,57 @@ io.on( 'connection', ( socket ) => {
 		console.log("DISCONNECTION USER");
 	});
 	
-	socket.on('uploadFile', (data) => {
+	socket.on('monitoring', (data) => {
+		
+		if(data.end){
+			
+			var byteLength = 0;
+			buffers.forEach(function(buffer) {
+				byteLength += buffer.byteLength;
+			});
+			
+			var tmp = new Uint16Array(byteLength);
+			var lastOffset = 0;
+			buffers.forEach(function(buffer) {
+				// BYTES_PER_ELEMENT == 2 for Uint16Array
+				var reusableByteLength = buffer.byteLength;
+				if (reusableByteLength % 2 != 0) {
+					buffer = buffer.slice(0, reusableByteLength - 1)
+				}
+				tmp.set(new Uint16Array(buffer), lastOffset);
+				lastOffset += reusableByteLength;
+			});
+			
+			console.log(tmp.buffer);
+			
+			var blob = new Blob([tmp.buffer], {
+				type: 'video/mp4',
+				video: {
+					width: 1280,
+					height: 720
+				}
+			});
+			
+			var fileReader = new FileReader();
+			
+			fileReader.onload = function (result) {
+				
+				var wstream = fs.createWriteStream( __dirname + "/temp/" + data.name + ".mp4" );
+				
+				wstream.write(Buffer.alloc(new Uint8Array(result)));
+				
+				wstream.end();	
+				
+			};
+			
+			fileReader.readAsArrayBuffer(blob);
+		
+		}else {
+			
+			console.log(data.data);
 
-		console.log("STREAM DATA COMMING");
-		
-		var wstream = fs.createWriteStream( __dirname + "/temp/" + data.name + ".txt" );
-		
-		wstream.write(data.data);
-		
-		wstream.end();
+			buffers.push(data.data);
+		}
 		
 	});
 });
-
-
-

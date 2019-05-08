@@ -36,7 +36,7 @@ function RTC(enables){
 	//##############################################
 	function importJs(enables){
 		[
-			(!!enables.record || !!enables.monitoring) ? path + '/node_modules/msr/MediaStreamRecorder.min.js' : ''
+			(!!enables.record || !!enables.monitoring) ? path + '/node_modules/msr/MediaStreamRecorder.js' : ''
 			,!!enables.fileShare ? path + '/node_modules/fbr/FileBufferReader.min.js' : ''
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
@@ -859,31 +859,59 @@ RTC.prototype.recording = function(streams, intervalTime){
 			
 	// 모니터링 & 로컬 사용자 녹화
 	
-	var multiStreamRecorder = new MultiStreamRecorder(streams);
+	var multiStreamRecorder = new MultiStreamRecorder(streams, {
+        mimeType: 'video/mp4;codecs=h264',
+        video: {
+            width: 1280,
+            height: 720
+        }
+    });
 	
-	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+	// multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 
-	
 	var chunk = [];
 	
+	var timestamp = new Date().getTime();
+	
 	multiStreamRecorder.ondataavailable = function(blob){
-		
-		var timestamp = new Date().getTime();
 		
 		if(!!!intervalTime || intervalTime == 0){
 			
 			// 로컬 녹화
-			
 			chunk.push(blob);
-			
+	
 		}else {
 			
 			// 모니터링
 			
-			rtc.conn.socket.emit('uploadFile', { name:timestamp, data:blob });	
-		
-			// @@ 임시 녹화 (making url)
+			// @@ 테스트 중
+			console.log(blob);
 			
+			rtc.conn.socket.emit('monitoring', { name:timestamp, data:blob, end:false });
+			
+			
+			
+			
+			
+			
+			//////////////Fail////////////////
+			// var reader = new FileReader();
+			
+            // reader.onload = function(event) {
+				// var result = event.target.result;
+				// console.log(result);
+				// rtc.conn.socket.emit('monitoring', { name:timestamp, data:result, end:false });
+            // };
+			
+            // reader.readAsArrayBuffer(blob);
+			//////////////////////////////////
+			
+			
+			
+			
+			
+			
+			// @@ 임시 모니터링 (making url)
 			// rtc.multiRecordeTempUrl(blob, 'server');
 		}
 	};
@@ -893,21 +921,16 @@ RTC.prototype.recording = function(streams, intervalTime){
 		if(!!!intervalTime || intervalTime == 0){
 			
 			// 로컬 녹화
-			
 			ConcatenateBlobs(chunk, 'video/mp4', function(resultingBlob) {
-				
-				// @@ 임시 모니터링 (making url)
-				
+				// @@ 임시 녹화 (making url)
 				rtc.multiRecordeTempUrl(resultingBlob, 'local');
-		
 			});
-		
+
 		}else {
 			
 			// 모니터링
+			rtc.conn.socket.emit('monitoring', { name:timestamp, end:true });	
 			
-			// rtc.conn.socket.emit('uploadFile', {name:timestamp});
-		
 		}
 	}
 	
