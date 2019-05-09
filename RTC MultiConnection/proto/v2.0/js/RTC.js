@@ -362,6 +362,7 @@ function RTC(enables){
 		if (event.data.custom){
 			rtc.onMessage(event.data.msg);
 		}
+		
 	}
 }
 
@@ -429,20 +430,23 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	window.navigator.mediaDevices = window.navigator.mediaDevices || window.navigator;
 	
 	if(!!!window.RTCPeerConnection){
+		console.error('NOT SUPPORT BROWSER : RTCPeerConnection Not Found');
 		notSupportCriticalList.push('all');
 	}
 	
 	if(!!!window.navigator.mediaDevices.getUserMedia){
+		console.error('NOT SUPPORT BROWSER : getUserMedia Not Found');
 		notSupportCriticalList.push('all');
 	}
 	
 	if(!!!enables.video && !!!enables.peerVideo){
+		console.error('NOT SUPPORT BROWSER : Not Found Video Contain');
 		notSupportList.push('video');
-		console.log('Not Found Video Contain');
 		// notSupportCriticalList.push('video');
 	}
 	
 	if(!!enables.screen && !!!window.navigator.mediaDevices.getDisplayMedia && window.navigator.userAgent.indexOf('Chrome') === -1 && window.navigator.userAgent.indexOf('Edge') !== -1){
+		console.error('NOT SUPPORT BROWSER : getDisplayMedia Not Found');
 		notSupportList.push('screen');
 		if(!!enables.screen.exact){
 			notSupportCriticalList.push('screen');
@@ -450,6 +454,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	}
 	
 	if((!!enables.recorde || !!enables.monitoring ) && window.MediaRecorder === undefined) {
+		console.error('NOT SUPPORT BROWSER : MediaRecorder Not Found');
 		notSupportList.push('recorde');
 		if((!!enables.recorde && !!enables.recorde.exact) || !!enables.monitoring){
 			notSupportCriticalList.push('recorde');
@@ -458,6 +463,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	
 
 	if(!!enables.dataChannel && !!!new RTCPeerConnection().createDataChannel){
+		console.error('NOT SUPPORT BROWSER : RTCPeerConnection.createDataChannel Not Found');
 		notSupportList.push('dataChannel');
 		if(!!enables.dataChannel.exact || !!enables.canvas.exact || !!enables.fileShare.exact){
 			notSupportCriticalList.push('dataChannel');
@@ -867,49 +873,24 @@ RTC.prototype.recording = function(streams, intervalTime){
         }
     });
 	
-	// multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
-
-	var chunk = [];
-	
-	var timestamp = new Date().getTime();
 	
 	multiStreamRecorder.ondataavailable = function(blob){
 		
+		var timestamp = new Date().getTime();
+
+		console.log(blob);
+		
 		if(!!!intervalTime || intervalTime == 0){
 			
-			// 로컬 녹화
-			chunk.push(blob);
+			// 로컬 녹화 
+			
+			// 임시 녹화 (making url)
+			rtc.multiRecordeTempUrl(blob, 'local');
 	
-		}else {
+		}else{
 			
 			// 모니터링
-			
-			// @@ 테스트 중
-			console.log(blob);
-			
 			rtc.conn.socket.emit('monitoring', { name:timestamp, data:blob, end:false });
-			
-			
-			
-			
-			
-			
-			//////////////Fail////////////////
-			// var reader = new FileReader();
-			
-            // reader.onload = function(event) {
-				// var result = event.target.result;
-				// console.log(result);
-				// rtc.conn.socket.emit('monitoring', { name:timestamp, data:result, end:false });
-            // };
-			
-            // reader.readAsArrayBuffer(blob);
-			//////////////////////////////////
-			
-			
-			
-			
-			
 			
 			// @@ 임시 모니터링 (making url)
 			// rtc.multiRecordeTempUrl(blob, 'server');
@@ -918,25 +899,17 @@ RTC.prototype.recording = function(streams, intervalTime){
 	
 	multiStreamRecorder.onstop = function(e){
 		
-		if(!!!intervalTime || intervalTime == 0){
-			
-			// 로컬 녹화
-			ConcatenateBlobs(chunk, 'video/mp4', function(resultingBlob) {
-				// @@ 임시 녹화 (making url)
-				rtc.multiRecordeTempUrl(resultingBlob, 'local');
-			});
-
-		}else {
-			
-			// 모니터링
-			rtc.conn.socket.emit('monitoring', { name:timestamp, end:true });	
-			
+		multiStreamRecorder.ondataavailable = function(blob){
+			// 잔여 기록물 활동중지
+		};
+		
+		if(!!intervalTime || intervalTime != 0){
+			// 모니터링 종료
+			// rtc.conn.socket.emit('monitoring', { name:timestamp, end:true });
 		}
 	}
 	
 	multiStreamRecorder.start(intervalTime);
-	
-	// @@ 주기적으로 감시되고 있는지 체크...?? 필수
 	
 	return multiStreamRecorder;
 	
