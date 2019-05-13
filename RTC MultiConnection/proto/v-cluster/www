@@ -1,0 +1,166 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('ebs-software-sharecoding-0-1:server');
+var http = require('http');
+//var https = require('https');
+var fs = require('fs');
+
+//const options = {
+//		key: fs.readFileSync('../keys/private.key'),
+//		cert: fs.readFileSync('../keys/private.crt')
+//	};
+
+var rtcMultiConnectionServer = require('rtcmulticonnection-server');
+var io = require('socket.io');
+
+
+
+const Redis = require('ioredis');
+const adapter = require('socket.io-redis');
+
+const options = {
+	  sentinels: [ { host: '127.0.0.1', port: 11001 } ]
+	, name: 'mymaster'
+	, password: "esof"
+};
+
+const pubClient = new Redis( options );
+const subClient = new Redis( options );
+
+
+
+
+
+var constants = require( _base + '/common/config/constants.js' );
+const listenPort = constants._listenPort;
+const projectVersion = constants._projectVersion;
+
+
+/**
+ * Get port from environment and store in Express.
+ */
+var port = normalizePort(process.env.PORT || listenPort);
+app.set('port', port);
+
+
+/**
+ * Create HTTP server.
+ */
+var server = http.createServer(app);
+//var server = https.createServer(options, app);
+
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+
+
+
+
+//var sio = io.listen( server, { transports: [ 'websocket', 'polling' ] } );
+var sio = io.listen( server );
+sio.adapter( adapter( { pubClient, subClient } ) );
+
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+var rtcSocket = sio.of("/");
+
+var customServer = new rtcMultiConnectionServer.CustomServer(rtcSocket);
+
+rtcSocket.on('connection', function(socket){
+	
+	customServer.addsocket(socket);
+	
+});
+//@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+/**
+ * 텍스트코딩 관련 소켓 
+ */
+var socketRelation = require( _base + '/common/socket/server_customSocket.js' );
+var codingSocketIo = sio.of("/codingSocket");
+//codingSocketIo.use( _sharedsession( _session, { autoSave: true } ) );
+//codingSocketIo.use( _sharedsession( _session ) );
+codingSocketIo.on( 'connection', function( socket ){
+	socketRelation.codingSocket( codingSocketIo, socket );
+} );
+
+
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+  
+  
+	console.log( "==================================================" );
+	console.log( "==== EBS SOFTWARE SHARECODING v" + projectVersion );
+	console.log( "==== Listening Port " + addr.port );
+	console.log( "==== Server Started" );
+	console.log( "==================================================" );
+  
+}
+
+
