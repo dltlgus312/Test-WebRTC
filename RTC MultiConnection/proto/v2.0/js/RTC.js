@@ -867,11 +867,11 @@ RTC.prototype.recording = function(streams, data){
 	// 모니터링 & 로컬 사용자 녹화
 	var multiStreamRecorder;
 	
-	if(!!data.constraints){
-		multiStreamRecorder = new MultiStreamRecorder(streams, data.constraints);
+	if(!!data && !!data.constraints){
+		// multiStreamRecorder = new MultiStreamRecorder(streams, data.constraints);
 	}else {
 		multiStreamRecorder = new MultiStreamRecorder(streams, {
-			mimeType: 'video/mp4;codecs=h264',
+			mimeType: 'video/mp4',
 			video: {
 				width: 1280,
 				height: 720
@@ -886,14 +886,14 @@ RTC.prototype.recording = function(streams, data){
 
 		console.log(blob);
 		
-		if(!!!data.intervalTime || data.intervalTime == 0){
+		if(!!data && !!!data.intervalTime){
 			
 			// 로컬 녹화 
 			
 			// 임시 녹화 (making url)
 			rtc.multiRecordeTempUrl(blob, 'local');
 	
-		}else{
+		}else if(!!data && !!data.intervalTime){
 			
 			// 모니터링
 			rtc.conn.socket.emit('monitoring', { name:timestamp, data:blob, end:false });
@@ -909,13 +909,13 @@ RTC.prototype.recording = function(streams, data){
 			// 잔여 기록물 활동중지
 		};
 		
-		if(!!data.intervalTime || data.intervalTime != 0){
+		if(!!data && !!data.intervalTime){
 			// 모니터링 종료
-			// rtc.conn.socket.emit('monitoring', { name:timestamp, end:true });
+			rtc.conn.socket.emit('monitoring', { end:true });
 		}
 	}
 	
-	multiStreamRecorder.start(data.intervalTime);
+	multiStreamRecorder.start(data && data.intervalTime ?  data.intervalTime : 0);
 	
 	return multiStreamRecorder;
 	
