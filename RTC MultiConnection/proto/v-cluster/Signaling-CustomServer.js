@@ -29,31 +29,40 @@ module.exports = exports = function CustomServer(io) {
 		});
 		
 		socket.on('check-presence', function(roomid, callback) {
-			io.adapter.clients([ sessionid ], function(err, clients) {
-				var roomClients = clients;
-				if(roomClients.length >= maxParticipantsAllowed){
-					callback(false, roomid);
+			io.adapter.clients([roomid], function(err, clients){
+				// ## Join Room
+				if(clients.length > 0){
+					callback(true, roomid, {
+                        _room: {
+							isFull: clients.length >= maxParticipantsAllowed,
+                            isPasswordProtected: false
+                        }
+                    });
 				}else {
-					callback(true, roomid);
+				// ## Open Room
+					callback(false, roomid, {
+                        _room: {
+                            isFull: false,
+                            isPasswordProtected: false
+                        }
+                    });
 				}
 			});
 		});
 		
 		socket.on('open-room', function(arg, callback) {
-			socket.join(sessionid);
-			callback(true);
+			joinRoom(sessionid, callback);
 		});
 		
 		socket.on('join-room', function(arg, callback) {
-			socket.join(sessionid);
-			callback(true);
+			joinRoom(sessionid, callback);
 		});
 		 
 		socket.on('disconnect', function() {
 			socket.in(sessionid).emit('user-disconnected', socket.userid);
-			
-            if (socket.ondisconnect) {
-                try {
+
+			if (socket.ondisconnect) {
+				try {
                     socket.ondisconnect();
                 }
                 catch(e) {
@@ -61,17 +70,28 @@ module.exports = exports = function CustomServer(io) {
                 }
             }
 		});
-		 
+		
 		socket.on(socketMessageEvent, function(message, callback) {
 			
-			if (message.remoteUserId && message.remoteUserId === socket.userid) {
-                // remoteUserId MUST be unique
-                return;
-            }
-			
 			socket.in( sessionid ).emit( socketMessageEvent, message );
-
+			
 		});
+		
+		function joinRoom(roomid, callback){
+			
+			// socket.emit('userid-already-taken', params.userid, '');
+			
+			io.adapter.clients([ sessionid ], function(err, clients) {
+				if(clients.length >= maxParticipantsAllowed){
+					callback(false, 'is Room Full');
+				}else {
+					socket.join(roomid);
+					callback(true, roomid);
+				}
+			});
+			
+		}
+		
 	}
 	
 }

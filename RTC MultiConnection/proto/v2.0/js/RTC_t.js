@@ -19,13 +19,13 @@
 //
 //##############################################
 
-var path = '';
+var path = '/txt';
 
-document.write("<script type='text/javascript' src='" + path + "/node_modules/webrtc-adapter/out/adapter.js'></script>");
+document.write("<script type='text/javascript' src='" + path + "/js/adapter/adapter.js'></script>");
 
-document.write("<script type='text/javascript' src='" + path + "/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js'></script>"); 
+document.write("<script type='text/javascript' src='" + path + "/js/custom/rtcmultiConnection/dist/RTCMultiConnection.js'></script>"); 
 
-document.write("<script type='text/javascript' src='" + path + "/socket.io/socket.io.js'></script>"); 
+document.write("<script type='text/javascript' src='" + path + "/node_modules/socket.io-client/dist/socket.io.js'></script>"); 
 
 function RTC(enables){
 	
@@ -36,11 +36,11 @@ function RTC(enables){
 	//##############################################
 	function importJs(enables){
 		[
-			(!!enables.record || !!enables.monitoring) ? path + '/node_modules/msr/MediaStreamRecorder.js' : ''
+			(!!enables.record || !!enables.monitoring) ? path + '/js/custom/msr/MediaStreamRecorder.min.js' : ''
 			,!!enables.fileShare ? path + '/node_modules/fbr/FileBufferReader.min.js' : ''
-			,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
-			,!!enables.canvas ? path + '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
-			,!!enables.screen ? path + '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
+			,!!enables.canvas ? path + '/js/custom/canvas-designer/dev/webrtc-handler.js' : ''
+			,!!enables.canvas ? path + '/js/custom/canvas-designer/canvas-designer-widget.js' : ''
+			,!!enables.screen ? path + '/js/custom/webrtc-screen-capturing/Screen-Capturing.js' : ''
 		].forEach(function(src) {
 			  var script = document.createElement('script');
 			  script.async = false;
@@ -142,7 +142,7 @@ function RTC(enables){
 	
 	conn.socketURL = '/';
 	
-	// conn.socketOptions = { 'path':'/shareCoding/socket/socket.io', "transports": ["websocket"] };
+	conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
 	
 	conn.dontCaptureUserMedia = true;
 	
@@ -642,9 +642,9 @@ RTC.prototype.canvasShareSetting = function(){
 	var rtc = this;
 	
 	var designer = new CanvasDesigner();
-		
-	designer.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
-	designer.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
+	
+	designer.widgetHtmlURL = path + '/js/custom/canvas-designer/widget.html';
+	designer.widgetJsURL = path + '/js/custom/canvas-designer/widget.js';
 	
 	designer.setSelected('pencil');
 	

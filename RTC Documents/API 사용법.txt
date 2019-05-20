@@ -1,3 +1,5 @@
+License : MIT
+
 connection.autoCloseEntireSession = true; 				생성자가 방을 떠나도 방은 유지
 connection.maxParticipantsAllowed = 1000; 				최대 연결자 수
 connection.publicRoomIdentifier = params.publicRoomIdentifier; 		공용 방 생성
