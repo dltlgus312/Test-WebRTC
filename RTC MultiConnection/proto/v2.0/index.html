@@ -14,6 +14,7 @@
 		
 		$(document).ready(function(){
 			$('#show-canvas').click(function(){
+				$("#widget-container").attr('style', 'visibility:visible');
 				$("#widget-container").show();
 				$("#fileshare-container").hide();
 				$("#setting-container").hide();
@@ -47,13 +48,13 @@
 					
 				}else {
 					
-					msr = rtc.recording(rtc.video, 3000);
+					msr = rtc.recording(rtc.video);
 					
 					ele.innerHTML = '녹화중지';
 					
 					<!-- rtc.getDisplayMedia(function(stream){ -->
 					
-						<!-- msr = rtc.recording(stream, 10000); -->
+						<!-- msr = rtc.recording(stream, {intervalTime: 10000}); -->
 						
 						<!-- stream.oninactive = function(){ -->
 							<!-- if(!!msr){ -->
