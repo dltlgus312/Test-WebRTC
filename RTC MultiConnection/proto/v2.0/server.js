@@ -4,6 +4,7 @@ var app = express( );
 var https = require('https');
 var io = require( 'socket.io' );
 var RTCMultiConnectionServer = require('rtcmulticonnection-server');
+var ffmpeg = require('fluent-ffmpeg');
 
 var options = {
   pfx: fs.readFileSync('../keys/server.pfx'),
@@ -35,6 +36,9 @@ app.get('/', ( req, res ) => {
 
 // Socket IO SETTING
 io = io(https);
+var names = [];
+var path = __dirname + "/temp/";
+var exe = 'mp4';
 io.on( 'connection', ( socket ) => {
 	
 	console.log( 'SOCKET CONNECTION' );
@@ -47,13 +51,30 @@ io.on( 'connection', ( socket ) => {
 	
 	socket.on('monitoring', (data) => {
 		
-		console.log(data);
-		
-		var wstream = fs.createWriteStream( __dirname + "/temp/" + data.name + ".mp4" );
-		
-		wstream.write(data.data);
-		
-		wstream.end();
+		if(!data.end){
+			
+			var name = data.name + "." + exe;
+			
+			var wstream = fs.createWriteStream( path + name );
+			
+			wstream.write(data.data);
+			
+			wstream.end();
+			
+			names = names + 'file ' + name + '\n';
+			
+		} else {
+			
+			fs.writeFileSync( path + 'list.txt', names );
+			
+			var mg = ffmpeg();
+			
+			mg.input( path + 'list.txt' )
+			.inputOptions(['-f concat', '-safe 0'])
+			.outputOptions('-c copy')
+			.save( path + 'test.' + exe );
+			
+		}
 	});
 });
 
