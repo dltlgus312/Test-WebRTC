@@ -72,6 +72,8 @@ io.on( 'connection', ( socket ) => {
 			mg.input( path + 'list.txt' )
 			.inputOptions(['-f concat', '-safe 0'])
 			.outputOptions('-c copy')
+			.on('end', function(){console.log('file save success')})
+			.on('error', function(err){console.log('file save err', err);});
 			.save( path + 'test.' + exe );
 			
 		}
