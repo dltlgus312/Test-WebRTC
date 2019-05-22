@@ -260,24 +260,35 @@ function RTC(enables){
 			});
 		};
 		
-		// Run Time Stream 공유 중지 시
+		// Run Time Stream 공유 중지 시 OR 장치 제거 시
 		if(evt.type === 'local'){
 			
 			evt.stream.onactive = function(event){
-				
-				rtc.stopOrStart(event.target.streamid, true, { enabled : true });
-				
-				rtc.stopOrStart(event.target.streamid, false, { enabled : true });
+				try {
+
+					rtc.stopOrStart(event.target.streamid, true, { enabled : true });
+					
+					rtc.stopOrStart(event.target.streamid, false, { enabled : true });
+					
+				} catch(error){
+					console.log(error);
+				}
 			}
 			
 			evt.stream.oninactive = function(event){
 				
-				rtc.stopOrStart(event.target.streamid, true, { enabled : false });
-				
-				rtc.stopOrStart(event.target.streamid, false, { enabled : false });
+				try {
+					
+					rtc.stopOrStart(event.target.streamid, true, { enabled : false });
+					
+					rtc.stopOrStart(event.target.streamid, false, { enabled : false });
+
+				} catch (error) {
+					console.log(error);
+				}				
 			}
 			
-		}else{
+		} else {
 		
 		}
 		
@@ -341,13 +352,6 @@ function RTC(enables){
 	
 	this.onRoomFull = function(error) {
 		alert('방이 꽉 찼습니다.');
-		// if(error.indexOf('full') !== -1){
-			// console.error(error);
-			// alert('방이 꽉 찼습니다.');
-		// }else {
-			// console.error(error);
-			// alert('동일 아이디 접속자가 있습니다.');
-		// }
 	};
 	
 	this.onUserIdAlreadyTaken = function(useridAlreadyTaken, yourNewUserId){
@@ -883,10 +887,9 @@ RTC.prototype.recording = function(streams, data){
 	var multiStreamRecorder;
 	
 	if(!!data && !!data.constraints){
-		// multiStreamRecorder = new MultiStreamRecorder(streams, data.constraints);
+		multiStreamRecorder = new MultiStreamRecorder(streams, data.constraints);
 	}else {
 		multiStreamRecorder = new MultiStreamRecorder(streams, {
-			mimeType: 'video/mp4',
 			video: {
 				width: 1280,
 				height: 720
@@ -894,6 +897,9 @@ RTC.prototype.recording = function(streams, data){
 		});		
 	}
 	
+	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+	// multiStreamRecorder.mimeType = 'video/webm;codecs=vp9';
+	// multiStreamRecorder.mimeType = 'video/x-matroska;codecs=avc1';
 	
 	multiStreamRecorder.ondataavailable = function(blob){
 		
@@ -911,7 +917,7 @@ RTC.prototype.recording = function(streams, data){
 		}else if(!!data && !!data.intervalTime){
 			
 			// 모니터링
-			rtc.conn.socket.emit('monitoring', { name:timestamp, data:blob, end:false });
+			rtc.conn.socket.emit('monitoring', { name:timestamp, data:blob, type:blob.type, end:false });
 			
 			// @@ 임시 모니터링 (making url)
 			// rtc.multiRecordeTempUrl(blob, 'server');

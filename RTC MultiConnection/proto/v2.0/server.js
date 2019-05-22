@@ -36,47 +36,9 @@ app.get('/', ( req, res ) => {
 
 // Socket IO SETTING
 io = io(https);
-var names = [];
-var path = __dirname + "/temp/";
-var exe = 'mp4';
 io.on( 'connection', ( socket ) => {
 	
-	console.log( 'SOCKET CONNECTION' );
 	RTCMultiConnectionServer.addSocket(socket);
 	
-	
-	socket.on('disconnect', (data) => {
-		console.log("DISCONNECTION USER");
-	});
-	
-	socket.on('monitoring', (data) => {
-		
-		if(!data.end){
-			
-			var name = data.name + "." + exe;
-			
-			var wstream = fs.createWriteStream( path + name );
-			
-			wstream.write(data.data);
-			
-			wstream.end();
-			
-			names = names + 'file ' + name + '\n';
-			
-		} else {
-			
-			fs.writeFileSync( path + 'list.txt', names );
-			
-			var mg = ffmpeg();
-			
-			mg.input( path + 'list.txt' )
-			.inputOptions(['-f concat', '-safe 0'])
-			.outputOptions('-c copy')
-			.on('end', function(){console.log('file save success')})
-			.on('error', function(err){console.log('file save err', err);});
-			.save( path + 'test.' + exe );
-			
-		}
-	});
 });
 

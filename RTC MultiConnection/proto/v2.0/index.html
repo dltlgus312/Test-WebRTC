@@ -48,7 +48,8 @@
 					
 				}else {
 					
-					msr = rtc.recording(rtc.video);
+					msr = rtc.recording(rtc.video, {intervalTime : 4000});
+					<!-- msr = rtc.recording(rtc.video); -->
 					
 					ele.innerHTML = '녹화중지';
 					
@@ -117,7 +118,7 @@
 			}
 			
 			<!-- rtc.openOrJoin(null, 'c', 'super'); -->
-			rtc.openOrJoin(null, 'c', 'user');
+			rtc.openOrJoin(null, 'b', 'user');
 		});
 	</script>
 	
