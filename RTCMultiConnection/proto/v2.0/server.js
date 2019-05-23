@@ -3,8 +3,9 @@ var express = require( 'express' );
 var app = express( );
 var https = require('https');
 var io = require( 'socket.io' );
-var RTCMultiConnectionServer = require('../API/node_modules/rtcmulticonnection-server');
 var ffmpeg = require('fluent-ffmpeg');
+var RTCMultiConnectionServer = require('/rtcmulticonnection-server');
+
 
 var options = {
   pfx: fs.readFileSync('../keys/server.pfx'),
