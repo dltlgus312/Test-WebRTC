@@ -907,7 +907,7 @@ RTC.prototype.recording = function(streams, data){
 
 		console.log(blob);
 		
-		if(!!data && !!!data.intervalTime){
+		if(!!!data || !!data && !!!data.intervalTime){
 			
 			// 로컬 녹화 
 			
