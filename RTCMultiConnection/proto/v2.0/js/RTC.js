@@ -897,9 +897,9 @@ RTC.prototype.recording = function(streams, data){
 		});		
 	}
 	
-	multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 	// multiStreamRecorder.mimeType = 'video/webm;codecs=vp9';
-	// multiStreamRecorder.mimeType = 'video/x-matroska;codecs=avc1';
+	// multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
+	multiStreamRecorder.mimeType = 'video/x-matroska;codecs=avc1';
 	
 	multiStreamRecorder.ondataavailable = function(blob){
 		
