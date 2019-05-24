@@ -71,13 +71,13 @@ var sio = io.listen( server );
 sio.adapter( adapter( { pubClient, subClient } ) );
 
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-var rtcSocket = sio.of("/");
+var rtcSocket = sio.of("/webrtc");
 
 var customServer = new rtcMultiConnectionServer.CustomServer(rtcSocket);
 
 rtcSocket.on('connection', function(socket){
 	
-	customServer.addsocket(socket);
+	customServer.addSocket(socket);
 	
 });
 //@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

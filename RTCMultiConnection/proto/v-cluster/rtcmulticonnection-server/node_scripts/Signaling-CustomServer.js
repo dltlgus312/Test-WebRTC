@@ -12,6 +12,10 @@ module.exports = exports = function CustomServer(io) {
 		
 		var sessionid = params.sessionid;
 		
+		console.log( 'Rtc Multi Connection ::: Signaling-CustomServer.addSocket' );
+		console.log( '::: USER Connection ID = ' + params.userid );
+		console.log( '::: ROOM Connection ID = ' + params.sessionid );
+		
 		var maxParticipantsAllowed = parseInt(params.maxParticipantsAllowed || 1000) || 1000;
 		
 		var socketMessageEvent = params.msgEvent || 'RTCMultiConnection-Message';

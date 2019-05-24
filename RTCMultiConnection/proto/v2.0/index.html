@@ -4,7 +4,7 @@
 
 	<link rel="stylesheet" href="/css/layout.css">
 	
-	<script src="/node_modules/jquery/dist/jquery.min.js"> </script> 
+	<!-- <script src="/node_modules/jquery/dist/jquery.min.js"> </script>  -->
 	
 	<script src="/js/RTC.js"></script>
 	
@@ -35,7 +35,7 @@
 			
 			
 			$('#share-screen').click(function(){
-				rtc.screenShare();
+				rtc.shareScreen();
 			});
 			$('#record-video').click(function(){
 				var ele = this;
@@ -72,7 +72,7 @@
 				}
 			});
 			$('#file-select').click(function(){
-				rtc.fileShare();
+				rtc.shareFile();
 			});
 
 
