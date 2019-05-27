@@ -4,7 +4,7 @@ var app = express( );
 var https = require('https');
 var io = require( 'socket.io' );
 var ffmpeg = require('fluent-ffmpeg');
-var RTCMultiConnectionServer = require('rtcmulticonnection-server');
+var RTCMultiConnectionServer = require(__dirname + '/../API/node_modules/rtcmulticonnection-server');
 
 
 var options = {
@@ -14,18 +14,18 @@ var options = {
 
 
 // FILE LOAD
-app.use("/node_modules", express.static(__dirname + "/../API/node_modules"));
-app.use("/html", express.static(__dirname));
-app.use("/css", express.static(__dirname + "/css"));
-app.use("/js", express.static(__dirname + "/js"));
-app.use("/image", express.static(__dirname + "/image"));
-app.use("/temp", express.static(__dirname + "/temp"));
+app.use('/node_modules', express.static(__dirname + '/../API/node_modules'));
+app.use('/html', express.static(__dirname));
+app.use('/css', express.static(__dirname + '/css'));
+app.use('/js', express.static(__dirname + '/js'));
+app.use('/image', express.static(__dirname + '/image'));
+app.use('/temp', express.static(__dirname + '/temp'));
 
 
 // HTTPS SERVER OPEN
 https = https.Server( options, app );
 https.listen(443, ( ) => {
-	console.log("HTTPS SERVER OPEN");
+	console.log('HTTPS SERVER OPEN');
 });
 
 
