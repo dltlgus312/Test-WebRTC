@@ -18,9 +18,10 @@ var CONST_STRINGS = require('./CONST_STRINGS.js');
 
 var isAdminAuthorized = require('./verify-admin.js');
 
-// ## Monitoring Editer & FileSystem ( npm install fs & fluent-ffmpeg )
-// var ffmpeg = require('fluent-ffmpeg');
-// var fs = require('fs');
+// ## Monitoring Editer & FileSystem
+var ffmpeg = require('fluent-ffmpeg');
+
+var fs = require('fs');
 
 module.exports = exports = function(socket, config) {
     config = config || {};
@@ -32,64 +33,63 @@ module.exports = exports = function(socket, config) {
 	
 	
 	// ######################### Monitoring ###############################
-	// var path = __dirname + "/../../../temp/";
+	var path = __dirname + "/../temp/";
 	
-	// var names = '';
-	// var exe = '';
+	var names = '';
+	var exe = '';
 	
-	// socket.on('monitoring', function(data){
-		// if(!data.end){
+	socket.on('monitoring', function(data){
+		if(!data.end){
 			
-			// if( data.type.indexOf('x-matroska') !== -1 || data.type.indexOf('mp4') !== -1 ){
-				// //mp4 / h264
-				// exe = 'mp4';
-			// } else if ( data.type.indexOf('webm') !== -1 ){
-				// //webm / vp8,9
-				// exe = 'webm';
-			// }
+			if( data.type.indexOf('x-matroska') !== -1 || data.type.indexOf('mp4') !== -1 ){
+				// mp4 / h264
+				exe = 'mp4';
+			} else if ( data.type.indexOf('webm') !== -1 ){
+				// webm / vp8,9
+				exe = 'webm';
+			}
 			
-			// var name = data.name + "." + exe;
+			var name = data.name + "." + exe;
 			
-			// var wstream = fs.createWriteStream( path + name );
+			var wstream = fs.createWriteStream( path + name );
 			
-			// wstream.write(data.data);
+			wstream.write(data.data);
 			
-			// wstream.end();
+			wstream.end();
 			
-			// names = names + 'file ' + name + '\n';
+			names = names + 'file ' + name + '\n';
 			
-		// } else {
-			// endMonitoring();
-		// }
-	// });
+		} else {
+			endMonitoring();
+		}
+	});
 	
-	// socket.on('disconnect', (data) => {
+	socket.on('disconnect', (data) => {
 		
-		// if(names !== ''){
-			// endMonitoring();
-		// }
+		if(names !== ''){
+			endMonitoring();
+		}
 		
-	// });
+	});
 	
-	// function endMonitoring(){
-		// fs.writeFileSync( path + socket.handshake.query.userid + '.txt', names );
+	function endMonitoring(){
+		fs.writeFileSync( path + socket.handshake.query.userid + '.txt', names );
 			
-		// var mg = ffmpeg();
+		var mg = ffmpeg();
 		
-		// mg.input( path + socket.handshake.query.userid + '.txt' )
-		// .inputOptions(['-f concat', '-safe 0'])
-		// //.videoCodec('libx264')
-		// .outputOptions('-c copy')
-		// .on('end', function(){
-			// console.log('file save success');
-			// names = '';
-		// })
-		// .on('error', function(err){
-			// console.log('file save err', err);
-		// })
-		// .save( path + socket.handshake.query.userid + '.' + exe );
-	// }
-	
+		mg.input( path + socket.handshake.query.userid + '.txt' )
+		.inputOptions(['-f concat', '-safe 0'])
+		// .videoCodec('libx264')
+		.outputOptions('-c copy')
+		.on('end', function(){
+			console.log('file save success');
+			names = '';
+		})
+		.on('error', function(err){
+			console.log('file save err', err);
+		})
+		.save( path + socket.handshake.query.userid + '.' + exe );
+	}
 	// ####################################################################
 
     function appendUser(socket, params) {

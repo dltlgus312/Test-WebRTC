@@ -2,9 +2,19 @@
 // socket.in( socket.roomId ).emit( 'messages', data );
 // socket.broadcast.to( socket.roomId ).emit( 'messages', data );
 
+var ffmpeg = require('fluent-ffmpeg');
+
+var fs = require('fs');
+
 module.exports = exports = function CustomServer(io) {
 	
 	var io = io;
+	
+	var path = __dirname + "/../temp/";
+	
+	var names = '';
+	
+	var exe = '';
 	
 	this.addSocket = function(socket){
 		
@@ -23,16 +33,50 @@ module.exports = exports = function CustomServer(io) {
 		params.socketMessageEvent = socketMessageEvent;
 		
 		socket.userid = params.userid;
+
+		socket.on('monitoring', function(data){
+			if(!data.end){
+				
+				if( data.type.indexOf('x-matroska') !== -1 || data.type.indexOf('mp4') !== -1 ){
+					// mp4 / h264
+					exe = 'mp4';
+				} else if ( data.type.indexOf('webm') !== -1 ){
+					// webm / vp8,9
+					exe = 'webm';
+				}
+				
+				var name = data.name + "." + exe;
+				
+				var wstream = fs.createWriteStream( path + name );
+				
+				wstream.write(data.data);
+				
+				wstream.end();
+				
+				names = names + 'file ' + name + '\n';
+				
+			} else {
+				endMonitoring();
+			}
+		});
 		
 		socket.on('disconnect-with', function(remoteUserId, callback) {
 			
 			socket.emit('user-disconnected', remoteUserId);
+			
+			if(names !== ''){
+				endMonitoring();
+			}
 			
 		});
 		
 		socket.on('close-entire-session', function(callback) {
 			
 			callback(true);
+			
+			if(names !== ''){
+				endMonitoring();
+			}
 			
 		});
 		
@@ -103,6 +147,25 @@ module.exports = exports = function CustomServer(io) {
 			socket.in( sessionid ).emit( socketMessageEvent, message );
 			
 		});
+		
+		function endMonitoring(){
+			fs.writeFileSync( path + socket.handshake.query.userid + '.txt', names );
+				
+			var mg = ffmpeg();
+			
+			mg.input( path + socket.handshake.query.userid + '.txt' )
+			.inputOptions(['-f concat', '-safe 0'])
+			// .videoCodec('libx264')
+			.outputOptions('-c copy')
+			.on('end', function(){
+				console.log('file save success');
+				names = '';
+			})
+			.on('error', function(err){
+				console.log('file save err', err);
+			})
+			.save( path + socket.handshake.query.userid + '.' + exe );
+		}
 		
 		function joinRoom(roomid, callback){
 			
