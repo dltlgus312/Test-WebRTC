@@ -1287,25 +1287,31 @@ RTC.prototype.shareFile = function(){
 // 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
 RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 	if(!!param && !!param.rtc){
-		// Remote Stream Controller
+		// Local Stream In Remote >> Local Self Stream ( SUPER Permission )
 		var rtc = param.rtc;
 		var enabled = param.enabled;
 		
 		if(!!rtc.video && streamId === rtc.video.streamid){
 			
-			isVideo ? rtc.video.getVideoTracks()[0].enabled = enabled : rtc.video.getAudioTracks()[0].enabled = enabled ;
+			isVideo ? rtc.video.getVideoTracks()[0].enabled = enabled : rtc.video.getAudioTracks()[0].enabled = enabled;
+			
+			isVideo ? rtc.video.getVideoTracks()[0].superGuard = !enabled : rtc.video.getAudioTracks()[0].superGuard = !enabled;
 			
 		} else if(!!rtc.screen && streamId === rtc.screen.streamid){
 			
 			isVideo ? rtc.screen.getVideoTracks()[0].enabled = enabled : rtc.screen.getAudioTracks()[0].enabled = enabled;
 			
-		} else {
+			isVideo ? rtc.screen.getVideoTracks()[0].superGuard = !enabled : rtc.screen.getAudioTracks()[0].superGuard = !enabled;
 			
+		} else {
+			// Remote Self Stream >> Remote Stream In Local 
 			rtc.remoteStreams.forEach(function(stream){
 				
 				if(streamId === stream.streamid){
 					
 					isVideo ? stream.getVideoTracks()[0].enabled = enabled : stream.getAudioTracks()[0].enabled = enabled;
+					
+					isVideo ? stream.getVideoTracks()[0].userGuard = !enabled : stream.getAudioTracks()[0].userGuard = !enabled;
 					
 				}
 				
@@ -1314,7 +1320,7 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		}
 
 	}else {
-		// Local Stream
+		// Local Stream & Remote Stream
 		var rtc = this;
 		
 		var enabled;
@@ -1322,6 +1328,14 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		var videoElement = document.getElementById(streamId);
 		
 		var track = isVideo ? videoElement.srcObject.getVideoTracks()[0] : videoElement.srcObject.getAudioTracks()[0];
+		
+		if(rtc.permission !== 'super' && !!track.superGuard){
+			rtc.onstoporstartdepend('super');
+			return;
+		}else if(!!track.userGuard){
+			rtc.onstoporstartdepend('user');
+			return;
+		}
 		
 		if(!!param && !!param.enabled){
 			
@@ -1343,7 +1357,6 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 		});
 	}
 }
-
 
 RTC.prototype.sendMessage = function(msg){
 	var rtc = this;
@@ -1451,6 +1464,14 @@ RTC.prototype.onresolutionsetting = function(event){
 	}
 	
 	rtc.enables.setting.appendChild(event.elements.select);
+}
+
+RTC.prototype.onstoporstartdepend = function(type){
+	if(type === 'super'){
+		// alert('방장권한');
+	}else if(type === 'user'){
+		// alert('유저권한');
+	}
 }
 
 // Custom Message Override
