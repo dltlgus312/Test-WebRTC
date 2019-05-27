@@ -4,7 +4,7 @@ var app = express( );
 var https = require('https');
 var io = require( 'socket.io' );
 var ffmpeg = require('fluent-ffmpeg');
-var RTCMultiConnectionServer = require('/rtcmulticonnection-server');
+var RTCMultiConnectionServer = require('rtcmulticonnection-server');
 
 
 var options = {

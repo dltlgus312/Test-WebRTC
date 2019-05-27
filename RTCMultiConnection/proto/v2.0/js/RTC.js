@@ -19,14 +19,14 @@
 //
 //##############################################
 
-//var path = '';
+var path = '';
 document.write("<script type='text/javascript' src='" + path + "/node_modules/webrtc-adapter/out/adapter.js'></script>");
 document.write("<script type='text/javascript' src='" + path + "/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js'></script>"); 
 document.write("<script type='text/javascript' src='" + path + "/node_modules/jquery/dist/jquery.min.js'></script>"); 
 document.write("<script type='text/javascript' src='" + path + "/socket.io/socket.io.js'></script>"); 
 
 // ## share coding env
- var path = '/txt';
+ // var path = '/txt';
  // document.write("<script type='text/javascript' src='" + path + "/js/adapter/adapter.js'></script>");
  // document.write("<script type='text/javascript' src='" + path + "/plugins/rtcMultiConnection/RTCMultiConnection.js'></script>"); 
  // document.write("<script type='text/javascript' src='" + path + "/node_modules/socket.io-client/dist/socket.io.js'></script>");
@@ -169,11 +169,11 @@ function RTC(enables){
 	
 	conn.maxParticipantsAllowed = 2;
 	
-	conn.iceServers = [];
+	// conn.iceServers = [];
 	
-	conn.iceServers.push(stunOption);
+	// conn.iceServers.push(stunOption);
 
-	conn.iceServers.push(turnOption);
+	// conn.iceServers.push(turnOption);
 	
 	conn.session = {
 		data: !!enables.dataChannel

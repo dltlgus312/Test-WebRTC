@@ -14,7 +14,6 @@
 		
 		$(document).ready(function(){
 			$('#show-canvas').click(function(){
-				$("#widget-container").attr('style', 'visibility:visible');
 				$("#widget-container").show();
 				$("#fileshare-container").hide();
 				$("#setting-container").hide();
@@ -107,7 +106,7 @@
 				peerVideo : $('#peer-video'),
 				setting : $('#setting-container'),
 				screen : { exact : $('#screen-video') },
-				fileShare : { exact: $('#fileshare-container') },
+				file : { exact: $('#fileshare-container') },
 				canvas : { exact: $('#widget-container') },
 				monitoring: true
 				<!-- dataChannel : {exact: true} -->
