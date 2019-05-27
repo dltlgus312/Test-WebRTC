@@ -1260,6 +1260,8 @@ RTC.prototype.shareScreen = function(){
 				
 				newAudioTrack.start();
 			}
+			
+			rtc.screen.play();
 		}
 	});
 }
