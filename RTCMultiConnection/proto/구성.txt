@@ -1,8 +1,9 @@
-ffmpeg && SYSTEM-ffmpeg
 fbr
 msr
 rtcmulticonnection
-rtcmulticonnection-server
+rtcmulticonnection-server : {
+	ffmpeg && SYSTEM-ffmpeg
+}
 canvas-designer
 webrtc-adapter
 webrtc-screen-capturing

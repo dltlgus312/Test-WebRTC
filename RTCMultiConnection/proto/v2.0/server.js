@@ -36,10 +36,21 @@ app.get('/', ( req, res ) => {
 
 
 // Socket IO SETTING
-io = io(https);
-io.on( 'connection', ( socket ) => {
+// io = io(https);
+// io.on( 'connection', ( socket ) => {
+// 	
+// 	RTCMultiConnectionServer.addSocket(socket);
+// 	
+// });
+
+io = io.listen(https);
+
+var rtcSocket = io.of("/");
+
+var customServer = new RTCMultiConnectionServer.CustomServer(rtcSocket);
+
+io.on('connection', function( socket ){
 	
-	RTCMultiConnectionServer.addSocket(socket);
+	customServer.addSocket(socket);
 	
 });
-

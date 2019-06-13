@@ -163,7 +163,7 @@ function RTC(enables){
 	
 	// ## share coding env
 	// conn.socketURL = '/webrtc';
-	 // conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
+	// conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
 	
 	conn.dontCaptureUserMedia = true;
 	
@@ -358,7 +358,13 @@ function RTC(enables){
 			
 			event.stream.stop();
 			
-			document.getElementById(event.stream.streamid).srcObject = null;
+			var element = document.getElementById(event.stream.streamid);
+			
+			if(element && element.srcObject){
+				
+				element.srcObject = null;
+				
+			}
 			
 			return;
 		}
@@ -690,18 +696,18 @@ RTC.prototype.canvasShareSetting = function(){
 		image: false,
 		pdf: false,
 		text: false,
-		line: false,
-		arrow: false,
+		line: true,
+		arrow: true,
 		dragSingle: false,
 		dragMultiple: false,
-		arc: false,
-		rectangle: false,
+		arc: true,
+		rectangle: true,
 		quadratic: false,
 		bezier: false,
 		marker: false,
 		zoom: false,
 		lineWidth: false,
-		colorsPicker: true,
+		colorsPicker: false,
 		extraOptions: false,
 		code: false,
 		undo: false
