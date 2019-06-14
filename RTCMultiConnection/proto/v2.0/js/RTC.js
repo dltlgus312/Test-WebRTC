@@ -167,7 +167,7 @@ function RTC(enables){
 	
 	conn.dontCaptureUserMedia = true;
 	
-	conn.maxParticipantsAllowed = 2;
+	conn.maxParticipantsAllowed = 10;
 	
 	// conn.iceServers = [];
 	
@@ -314,7 +314,8 @@ function RTC(enables){
 		
 		rtc.onstream(rtc, evt);
 	};
-
+	
+	// onDataChannelOpened SUCCESS
 	this.onopen = function(event) {
 		if (!!rtc.designer && rtc.designer.pointsLength <= 0 && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
 			setTimeout(function() {
@@ -385,20 +386,23 @@ function RTC(enables){
 	this.messageHandler = function(event){
 		
 		if (event.data.stopOrStart){
+			rtc.onnoticemessage(event.userid, 'stopOrStart', event.data);
 			rtc.stopOrStart(event.data.id, event.data.isVideo, {rtc: rtc, enabled: event.data.enabled});
 		}
 		
 		if (event.data === 'plz-sync-points' && !!rtc.designer) {
+			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 			rtc.designer.sync();
-			return;
 		}
 		
 		if (event.data.canvas && !!rtc.designer) {
+			rtc.onnoticemessage(event.userid, 'sync', event.data);
 			rtc.designer.syncData(event.data.data);
 		}
 		
 		if (event.data.custom){
-			rtc.onMessage(event.data.msg);
+			rtc.onnoticemessage(event.userid, 'custom', event.data);
+			rtc.onmessage(event.data.msg);
 		}
 		
 	}
@@ -657,6 +661,7 @@ RTC.prototype.RMCEventHandler = function(){
 	
 	if(!!rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1){
 		rtc.conn.onmessage = rtc.messageHandler;
+		rtc.conn.onnoticemessage = rtc.onnoticemessage;
 	}
 }
 
@@ -693,15 +698,16 @@ RTC.prototype.canvasShareSetting = function(){
 	designer.setTools({
 		pencil: true,
 		eraser: true,
-		image: false,
-		pdf: false,
-		text: false,
 		line: true,
 		arrow: true,
-		dragSingle: false,
-		dragMultiple: false,
 		arc: true,
 		rectangle: true,
+		image: true,
+		pdf: true,
+		text: true,
+		dragSingle: true,
+		undo: true,
+		dragMultiple: false,
 		quadratic: false,
 		bezier: false,
 		marker: false,
@@ -709,8 +715,7 @@ RTC.prototype.canvasShareSetting = function(){
 		lineWidth: false,
 		colorsPicker: false,
 		extraOptions: false,
-		code: false,
-		undo: false
+		code: false
 	});
 		
 	rtc.enables.canvas = rtc.enables.canvas.exact || rtc.enables.canvas;
@@ -1481,8 +1486,13 @@ RTC.prototype.onstoporstartdepend = function(type){
 }
 
 // Custom Message Override
-RTC.prototype.onMessage = function(msg){
+RTC.prototype.onmessage = function(msg){
 	
+}
+
+// 알림
+RTC.prototype.onnoticemessage = function(userid, type, data){
+	console.log(userid, type, data);
 }
 
 
