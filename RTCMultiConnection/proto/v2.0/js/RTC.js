@@ -746,6 +746,11 @@ RTC.prototype.canvasShareSetting = function(){
 		rtc.conn.send({canvas: true, data: data});
 	});
 	
+	// ## Canvas 파일 공유
+	designer.addFileShare(function(file) {
+		// rtc.conn.send(file);
+	});
+	
 	rtc.designer = designer;
 	
 }
