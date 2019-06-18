@@ -1,4 +1,3 @@
-
 // enables.video = div || video;
 // enables.peerVideo = div || video;
 // enables.setting = div;
@@ -167,7 +166,7 @@ function RTC(enables){
 	
 	conn.dontCaptureUserMedia = true;
 	
-	conn.maxParticipantsAllowed = 10;
+	conn.maxParticipantsAllowed = 9999;
 	
 	// conn.iceServers = [];
 	
@@ -193,7 +192,8 @@ function RTC(enables){
 	//##############################################
 	this.setstream = function(event) {
 		
-		console.log(event);
+		// @@ log
+		// console.log(event);
 		
 		var evt = event;
 		
@@ -285,7 +285,8 @@ function RTC(enables){
 					rtc.stopOrStart(event.target.streamid, false, { enabled : true });
 					
 				} catch(error){
-					console.log(error);
+					// @@ log
+					// console.log(error);
 				}
 			}
 			
@@ -298,7 +299,8 @@ function RTC(enables){
 					rtc.stopOrStart(event.target.streamid, false, { enabled : false });
 
 				} catch (error) {
-					console.log(error);
+					// @@ log
+					// console.log(error);
 				}				
 			}
 			
@@ -362,9 +364,7 @@ function RTC(enables){
 			var element = document.getElementById(event.stream.streamid);
 			
 			if(element && element.srcObject){
-				
 				element.srcObject = null;
-				
 			}
 			
 			return;
@@ -521,7 +521,8 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 
 RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
 	
-	console.error("에러 : " + error);
+	// @@ log
+	// console.error("에러 : " + error);
 	
 	this.onMediaCaptureError(error.name, isAudio);
 	
@@ -685,13 +686,13 @@ RTC.prototype.canvasShareSetting = function(){
 	var rtc = this;
 	
 	var designer = new CanvasDesigner();
-		
+	
 	designer.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
 	designer.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
 	
 	// ## share coding env
-	 // designer.widgetHtmlURL = path + '/plugins/canvas-designer//widget.html';
-	 // designer.widgetJsURL = path + '/plugins/canvas-designer/widget.js';
+	// designer.widgetHtmlURL = path + '/plugins/canvas-designer//widget.html';
+	// designer.widgetJsURL = path + '/plugins/canvas-designer/widget.js';
 	
 	designer.setSelected('pencil');
 	
@@ -702,11 +703,13 @@ RTC.prototype.canvasShareSetting = function(){
 		arrow: true,
 		arc: true,
 		rectangle: true,
+		
 		image: true,
 		pdf: true,
 		text: true,
 		dragSingle: true,
 		undo: true,
+		
 		dragMultiple: false,
 		quadratic: false,
 		bezier: false,
@@ -746,10 +749,18 @@ RTC.prototype.canvasShareSetting = function(){
 		rtc.conn.send({canvas: true, data: data});
 	});
 	
-	// ## Canvas 파일 공유
-	designer.addFileShare(function(file) {
+	// ##### Custom Method Override #####
+	designer.addFileShare = function(file) {
 		// rtc.conn.send(file);
-	});
+		// @@ log
+		 console.log(file);
+	};
+	
+	designer.doSave = function(data) {
+		// @@ log
+		 console.log(data);
+	};
+	// ##################################
 	
 	rtc.designer = designer;
 	
@@ -810,7 +821,8 @@ RTC.prototype.deviceSetting = function(stream){
 						// rtc.deviceSetting(stream);
 						option.selected = true;
 					}).catch(function(error){
-						console.error('audio output error : ', error);
+						// @@ log
+						// console.error('audio output error : ', error);
 					});;
 				}
 				
@@ -946,15 +958,14 @@ RTC.prototype.recording = function(streams, data){
 		});		
 	}
 	
-	// multiStreamRecorder.mimeType = 'video/webm;codecs=vp9';
-	// multiStreamRecorder.mimeType = 'video/mp4;codecs=h264';
 	multiStreamRecorder.mimeType = 'video/x-matroska;codecs=avc1';
 	
 	multiStreamRecorder.ondataavailable = function(blob){
 		
 		var timestamp = new Date().getTime();
-
-		console.log(blob);
+		
+		// @@ log
+		// console.log(blob);
 		
 		if(!!data && !!!data.intervalTime){
 			
@@ -1073,7 +1084,8 @@ RTC.prototype.getDisplayMedia = function(callback){
 				getScreenConstraints(function(error, screen_constraints) {
 					
 					if (error) {
-						console.log(error);
+						// @@ log
+						// console.log(error);
 						return 
 					}
 
@@ -1277,6 +1289,7 @@ RTC.prototype.shareScreen = function(){
 				newAudioTrack.start();
 			}
 			
+
 			rtc.screen.play();
 		}
 	});
@@ -1300,7 +1313,7 @@ RTC.prototype.shareFile = function(){
 	});
 }
 
-// 스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
+//스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
 RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 	if(!!param && !!param.rtc){
 		// Local Stream In Remote >> Local Self Stream ( SUPER Permission )
@@ -1497,8 +1510,11 @@ RTC.prototype.onmessage = function(msg){
 
 // 알림
 RTC.prototype.onnoticemessage = function(userid, type, data){
+	// @@ log
 	console.log(userid, type, data);
 }
+
+
 
 
 
