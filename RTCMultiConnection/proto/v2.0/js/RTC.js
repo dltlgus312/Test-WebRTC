@@ -345,11 +345,16 @@ function RTC(enables){
 		}
 		
 		if(!!rtc.enables.setting){
-			// 각 스트림 (비디오) 해상도 셀렉터 삭제
-			var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
-			
-			if(!!select && !!select.parentNode){
-				select.parentNode.removeChild(select);
+			// ## 새로고침이 꼬일경우 에러발생....
+			try{
+				// 각 스트림 (비디오) 해상도 셀렉터 삭제
+				var select = rtc.resolutionSelect[event.stream.streamid].elements.select;
+
+				if(!!select && !!select.parentNode){
+					select.parentNode.removeChild(select);
+				}
+			}catch (error){
+				location.reload();
 			}
 		}
 
