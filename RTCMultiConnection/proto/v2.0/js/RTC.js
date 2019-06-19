@@ -696,7 +696,7 @@ RTC.prototype.canvasShareSetting = function(){
 	designer.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
 	
 	// ## share coding env
-	// designer.widgetHtmlURL = path + '/plugins/canvas-designer//widget.html';
+	// designer.widgetHtmlURL = path + '/plugins/canvas-designer/widget.html';
 	// designer.widgetJsURL = path + '/plugins/canvas-designer/widget.js';
 	
 	designer.setSelected('pencil');
@@ -708,15 +708,15 @@ RTC.prototype.canvasShareSetting = function(){
 		arrow: true,
 		arc: true,
 		rectangle: true,
-		
-		image: true,
-		pdf: true,
-		text: true,
-		dragSingle: true,
 		undo: true,
-		clear:true,
+		clear: true,
 		
+		pdf: true,
+		image: false,
+		text: false,
 		dragMultiple: false,
+		
+		dragSingle: false,
 		quadratic: false,
 		bezier: false,
 		marker: false,
