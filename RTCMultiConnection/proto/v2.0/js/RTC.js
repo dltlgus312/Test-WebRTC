@@ -714,6 +714,7 @@ RTC.prototype.canvasShareSetting = function(){
 		text: true,
 		dragSingle: true,
 		undo: true,
+		clear:true,
 		
 		dragMultiple: false,
 		quadratic: false,
@@ -1396,6 +1397,12 @@ RTC.prototype.sendMessage = function(msg){
 	var rtc = this;
 	
 	rtc.conn.send({custom: true, msg: msg});
+}
+
+RTC.prototype.canvasEnableTouch = function(enable){
+	var rtc = this;
+	
+	rtc.designer.enableTouch(enable);
 }
 
 
