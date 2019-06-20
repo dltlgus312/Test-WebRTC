@@ -712,11 +712,12 @@ RTC.prototype.canvasShareSetting = function(){
 		clear: true,
 		
 		pdf: true,
+		dragSingle: true,
+		
 		image: false,
 		text: false,
 		dragMultiple: false,
 		
-		dragSingle: false,
 		quadratic: false,
 		bezier: false,
 		marker: false,
