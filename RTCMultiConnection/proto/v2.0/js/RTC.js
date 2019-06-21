@@ -712,11 +712,13 @@ RTC.prototype.canvasShareSetting = function(){
 		clear: true,
 		
 		pdf: true,
+		fullScreen: true,
 		dragSingle: true,
+		dragMultiple: true,
+		paging: false,
 		
 		image: false,
 		text: false,
-		dragMultiple: false,
 		
 		quadratic: false,
 		bezier: false,
@@ -757,15 +759,20 @@ RTC.prototype.canvasShareSetting = function(){
 	});
 	
 	// ##### Custom Method Override #####
-	designer.addFileShare = function(file) {
+	designer.onaddfileshare = function(file) {
 		// rtc.conn.send(file);
 		// @@ log
 		 console.log(file);
 	};
 	
-	designer.doSave = function(data) {
+	designer.ondosave = function(data) {
 		// @@ log
 		 console.log(data);
+	};
+	
+	designer.ondataurl = function(data) {
+		// @@ log
+		console.log(data);
 	};
 	// ##################################
 	
@@ -1400,11 +1407,27 @@ RTC.prototype.sendMessage = function(msg){
 	rtc.conn.send({custom: true, msg: msg});
 }
 
+// #################### 캔버스 이벤트 ##########################
 RTC.prototype.canvasEnableTouch = function(enable){
+	// param : true, false
 	var rtc = this;
-	
 	rtc.designer.enableTouch(enable);
 }
+
+RTC.prototype.canvasToDataUrl = function(){
+	// resule : base64
+	var rtc = this;
+	rtc.designer.toDataURL('image/png');
+}
+
+RTC.prototype.canvasDoSave = function(data){
+	// param : empty, 'all', 'now', {key, page}
+	// result : points, pencilUndo, shapeSelectList
+	var rtc = this;
+	rtc.designer.doSave(data);
+}
+// ########################################################
+
 
 
 //##############################################
