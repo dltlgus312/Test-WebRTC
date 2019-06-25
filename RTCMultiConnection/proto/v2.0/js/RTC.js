@@ -684,6 +684,8 @@ RTC.prototype.fileShareSetting = function(){
 	rtc.enables.file.setAttribute("style", "overflow:auto");
 	
 	rtc.conn.filesContainer = rtc.enables.file;
+	
+	rtc.conn.viewer = true;
 }
 
 RTC.prototype.canvasShareSetting = function(){
@@ -957,7 +959,7 @@ RTC.prototype.resolutionSetting = function(stream){
 //
 //##############################################
 RTC.prototype.recording = function(streams, data){
-	// intervalTime, constraints
+	// data : intervalTime (녹화 간격 : null 일경우 처음부터 끝까지 녹화), constraints (비디오 해상도)
 	// 모니터링 & 로컬 사용자 녹화
 	var multiStreamRecorder;
 	
@@ -981,7 +983,7 @@ RTC.prototype.recording = function(streams, data){
 		// @@ log
 		// console.log(blob);
 		
-		if(!!data && !!!data.intervalTime){
+		if(!!!data || ( !!data && !!!data.intervalTime )){
 			
 			// 로컬 녹화 
 			
