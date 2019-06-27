@@ -1,0 +1,58 @@
+
+		######################## RTC.js ##############################
+		if(rtc.conn.blobBuffers){
+			rtc.conn.blobBuffers.forEach(function(data){
+				rtc.conn.send(data);
+			});
+		}		
+
+		######################## 참고 ###############################
+		if(object.fileSync){
+                        	!connection.blobBuffers ? connection.blobBuffers = [] : '';
+
+                        	connection.blobBuffers.push(message);
+
+			for (var item in object.extra) {
+				try {
+					object.blob[item] = object.extra[item];
+				} catch (e) {}
+			}
+			object.blob.url = URL.createObjectURL(object.blob);
+			connection.addFile(object.blob);
+                        }
+
+		######################### addFile 상단############################
+
+		if(!(file instanceof Blob)){
+            		return;
+            	}		
+
+		// ######################### blob sync 하단 ########################
+            	if(file.extra){
+            		
+            		!connection.blobBuffers ? connection.blobBuffers = [] : '';
+            		
+            		var data = {};
+            		var extra = {};
+            		
+            		extra = {
+            			name : file.name,
+            			type : file.type,
+            			size : file.size,
+            			userid : file.userid,
+            			uuid : file.uuid
+            		};
+            		
+            		data = {
+            				fileSync : true,
+            				extra : extra,
+            				blob : file
+            		};
+            		
+            		connection.fbr.convertToArrayBuffer(data, function(buffer){
+            			connection.blobBuffers.push(buffer);
+            			connection.send(buffer);
+            		});
+            		
+            	}
+            	// ###########################################################

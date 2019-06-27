@@ -1,0 +1,20 @@
+권한 재요청시?
+	navigator.permissions.query({name: 'microphone'})
+	 .then((permissionObj) => {
+	 	permissionObj.onchange = function(){
+			~~~~~
+		}
+	 })
+	 .catch((error) => {
+	  	
+	 })
+
+	 navigator.permissions.query({name: 'camera'})
+	 .then((permissionObj) => {
+		 permissionObj.onchange = function(){
+			~~~~~
+		}
+	 })
+	 .catch((error) => {
+	 	
+	 })

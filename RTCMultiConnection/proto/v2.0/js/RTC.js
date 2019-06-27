@@ -685,7 +685,11 @@ RTC.prototype.fileShareSetting = function(){
 	
 	rtc.conn.filesContainer = rtc.enables.file;
 	
-	rtc.conn.viewer = true;
+	rtc.shareFileInServer = false;
+	
+	rtc.multiFile = true;
+
+	rtc.conn.fileViewer = true;
 }
 
 RTC.prototype.canvasShareSetting = function(){
@@ -1315,7 +1319,7 @@ RTC.prototype.shareFile = function(){
 	
 	var rtc = this;
 	
-	if(rtc.conn.peers.getLength() === 0){
+	if(rtc.conn.peers.getLength() === 0 && !rtc.shareFileInServer){
 		
 		alert('파일을 공유할 유저가 없습니다.');
 		
@@ -1324,9 +1328,27 @@ RTC.prototype.shareFile = function(){
 	
 	var fileSelector = new FileSelector();
 	
-	fileSelector.selectSingleFile(function(file) {
-		rtc.conn.send(file);
-	});
+	if(rtc.multiFile){
+		fileSelector.selectMultipleFiles(function(files) {
+			if(rtc.shareFileInServer){
+				// @@ file server upload
+				
+			}else {
+				files.forEach(function(file){
+					rtc.conn.send(file);
+				});
+			}
+		});
+	}else {
+		fileSelector.selectSingleFile(function(file) {
+			if(rtc.shareFileInServer){
+				// @@ file server upload
+				
+			}else {
+				rtc.conn.send(file);
+			}
+		});
+	}
 }
 
 //스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
