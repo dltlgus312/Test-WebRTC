@@ -48,7 +48,7 @@ function RTC(enables){
 	function importJs(enables){
 		[
 			(!!enables.record || !!enables.monitoring) ? path + '/node_modules/msr/MediaStreamRecorder.js' : ''
-			,!!enables.file ? path + '/node_modules/fbr/FileBufferReader.min.js' : ''
+			,!!enables.file ? path + '/node_modules/fbr/FileBufferReader.js' : ''
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
 			,!!enables.screen ? path + '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
@@ -319,9 +319,15 @@ function RTC(enables){
 	
 	// onDataChannelOpened SUCCESS
 	this.onopen = function(event) {
-		if (!!rtc.designer && rtc.designer.pointsLength <= 0 && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
+		if ( !!!rtc.plzSync && !!rtc.designer && rtc.designer.pointsLength <= 0 && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
 			setTimeout(function() {
-				rtc.conn.send('plz-sync-points');
+				var peerIds = rtc.conn.getAllParticipants()
+				
+				rtc.conn.peers[peerIds[0]].channels.forEach(function(channel) {
+					channel.send(JSON.stringify({ message : 'plz-sync-points', last : true}));
+				});
+				
+				rtc.plzSync = true;
 			}, 1000);
 		}
 	};
@@ -389,25 +395,25 @@ function RTC(enables){
 	}
 	
 	this.messageHandler = function(event){
-		
 		if (event.data.stopOrStart){
-			rtc.onnoticemessage(event.userid, 'stopOrStart', event.data);
 			rtc.stopOrStart(event.data.id, event.data.isVideo, {rtc: rtc, enabled: event.data.enabled});
+			rtc.onnoticemessage(event.userid, 'stopOrStart', event.data);
 		}
 		
 		if (event.data === 'plz-sync-points' && !!rtc.designer) {
-			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 			rtc.designer.sync();
+			rtc.fileSync(event.userid);
+			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 		}
 		
 		if (event.data.canvas && !!rtc.designer) {
-			rtc.onnoticemessage(event.userid, 'sync', event.data);
 			rtc.designer.syncData(event.data.data);
+			rtc.onnoticemessage(event.userid, 'sync', event.data);
 		}
 		
 		if (event.data.custom){
-			rtc.onnoticemessage(event.userid, 'custom', event.data);
 			rtc.onmessage(event.data.msg);
+			rtc.onnoticemessage(event.userid, 'custom', event.data);
 		}
 		
 	}
@@ -687,7 +693,7 @@ RTC.prototype.fileShareSetting = function(){
 	
 	rtc.shareFileInServer = false;
 	
-	rtc.multiFile = true;
+	rtc.multiFilePicker = true;
 
 	rtc.conn.fileViewer = true;
 }
@@ -1328,7 +1334,7 @@ RTC.prototype.shareFile = function(){
 	
 	var fileSelector = new FileSelector();
 	
-	if(rtc.multiFile){
+	if(rtc.multiFilePicker){
 		fileSelector.selectMultipleFiles(function(files) {
 			if(rtc.shareFileInServer){
 				// @@ file server upload
@@ -1348,6 +1354,22 @@ RTC.prototype.shareFile = function(){
 				rtc.conn.send(file);
 			}
 		});
+	}
+}
+
+RTC.prototype.fileSync = function(userid){
+	if(rtc.conn.fbr && rtc.conn.fbr.chunks){
+		for(var uuid in rtc.conn.fbr.chunks){
+			
+			var chunk = rtc.conn.fbr.chunks[uuid]; 
+
+			if(!chunk[chunk[0].maxChunks]) return;
+			
+			rtc.conn.fbr.getNextChunk(uuid, function(nextChunk) {
+				rtc.conn.peers[userid].peer.channel.send(nextChunk);
+			}, userid);
+			
+		}
 	}
 }
 
