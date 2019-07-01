@@ -402,7 +402,7 @@ function RTC(enables){
 		
 		if (event.data === 'plz-sync-points' && !!rtc.designer) {
 			rtc.designer.sync();
-			rtc.fileSync(event.userid);
+			rtc.conn.fileSync(event.userid);
 			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 		}
 		
@@ -691,11 +691,12 @@ RTC.prototype.fileShareSetting = function(){
 	
 	rtc.conn.filesContainer = rtc.enables.file;
 	
-	rtc.shareFileInServer = false;
-	
-	rtc.multiFilePicker = true;
-
 	rtc.conn.fileViewer = true;
+
+	rtc.conn.multiFilePicker = true;
+
+	rtc.conn.shareFileInServer = false;
+	
 }
 
 RTC.prototype.canvasShareSetting = function(){
@@ -772,21 +773,26 @@ RTC.prototype.canvasShareSetting = function(){
 	
 	// ##### Custom Method Override #####
 	designer.onaddfileshare = function(file) {
-		// rtc.conn.send(file);
+		rtc.conn.send(file);
+		
 		// @@ log
-		 console.log(file);
+		console.log(file);
 	};
 	
 	designer.ondosave = function(data) {
+		// dosave ==  'all'  or  'now'  or  dosave.key  or  other 
+		// RTC.prototype.canvasDoSave(data) 호출시 
+		
 		// @@ log
 		 console.log(data);
 	};
 	
 	designer.ondataurl = function(data) {
+		// RTC.prototype.canvasToDataUrl() 호출시 기본 image/png 타입 base64 리턴
+		
 		// @@ log
 		console.log(data);
 	};
-	// ##################################
 	
 	rtc.designer = designer;
 	
@@ -1315,7 +1321,6 @@ RTC.prototype.shareScreen = function(){
 				newAudioTrack.start();
 			}
 			
-
 			rtc.screen.play();
 		}
 	});
@@ -1325,19 +1330,12 @@ RTC.prototype.shareFile = function(){
 	
 	var rtc = this;
 	
-	if(rtc.conn.peers.getLength() === 0 && !rtc.shareFileInServer){
-		
-		alert('파일을 공유할 유저가 없습니다.');
-		
-		return;
-	}
-	
 	var fileSelector = new FileSelector();
 	
-	if(rtc.multiFilePicker){
+	if(rtc.conn.multiFilePicker){
 		fileSelector.selectMultipleFiles(function(files) {
-			if(rtc.shareFileInServer){
-				// @@ file server upload
+			if(rtc.conn.shareFileInServer){
+				// @@ multi file upload in server 
 				
 			}else {
 				files.forEach(function(file){
@@ -1347,29 +1345,13 @@ RTC.prototype.shareFile = function(){
 		});
 	}else {
 		fileSelector.selectSingleFile(function(file) {
-			if(rtc.shareFileInServer){
-				// @@ file server upload
+			if(rtc.conn.shareFileInServer){
+				// @@ single file upload in server
 				
 			}else {
 				rtc.conn.send(file);
 			}
 		});
-	}
-}
-
-RTC.prototype.fileSync = function(userid){
-	if(rtc.conn.fbr && rtc.conn.fbr.chunks){
-		for(var uuid in rtc.conn.fbr.chunks){
-			
-			var chunk = rtc.conn.fbr.chunks[uuid]; 
-
-			if(!chunk[chunk[0].maxChunks]) return;
-			
-			rtc.conn.fbr.getNextChunk(uuid, function(nextChunk) {
-				rtc.conn.peers[userid].peer.channel.send(nextChunk);
-			}, userid);
-			
-		}
 	}
 }
 
@@ -1467,7 +1449,7 @@ RTC.prototype.canvasToDataUrl = function(){
 }
 
 RTC.prototype.canvasDoSave = function(data){
-	// param : empty, 'all', 'now', {key, page}
+	// dosave : empty, 'all', 'now', {key : key, page : page}
 	// result : points, pencilUndo, shapeSelectList
 	var rtc = this;
 	rtc.designer.doSave(data);
