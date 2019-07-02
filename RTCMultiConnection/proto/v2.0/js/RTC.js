@@ -319,15 +319,12 @@ function RTC(enables){
 	
 	// onDataChannelOpened SUCCESS
 	this.onopen = function(event) {
-		if ( !!!rtc.plzSync && !!rtc.designer && rtc.designer.pointsLength <= 0 && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
+		// rtc.designer.pointsLength <= 0 && 
+		if ( !!rtc.designer && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
 			setTimeout(function() {
-				var peerIds = rtc.conn.getAllParticipants()
 				
-				rtc.conn.peers[peerIds[0]].channels.forEach(function(channel) {
-					channel.send(JSON.stringify({ message : 'plz-sync-points', last : true}));
-				});
+				rtc.conn.send({message : 'plz-sync-points', syncFileList : rtc.conn.syncFileList});
 				
-				rtc.plzSync = true;
 			}, 1000);
 		}
 	};
@@ -395,14 +392,15 @@ function RTC(enables){
 	}
 	
 	this.messageHandler = function(event){
+		
 		if (event.data.stopOrStart){
 			rtc.stopOrStart(event.data.id, event.data.isVideo, {rtc: rtc, enabled: event.data.enabled});
 			rtc.onnoticemessage(event.userid, 'stopOrStart', event.data);
 		}
 		
-		if (event.data === 'plz-sync-points' && !!rtc.designer) {
+		if (event.data.message === 'plz-sync-points' && !!rtc.designer) {
 			rtc.designer.sync();
-			rtc.conn.fileSync(event.userid);
+			rtc.conn.syncFile(event.userid, event.data.syncFileList);
 			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 		}
 		
@@ -411,11 +409,17 @@ function RTC(enables){
 			rtc.onnoticemessage(event.userid, 'sync', event.data);
 		}
 		
+		if (event.data.syncFile){
+			rtc.conn.fbr.getNextChunk(event.data.syncFile, function(nextChunk) {
+				rtc.conn.peers[event.userid].peer.channel.send(nextChunk);
+			}, event.userid, rtc.conn.userid);
+			rtc.onnoticemessage(event.userid, 'syncFile', event.data);
+		}
+
 		if (event.data.custom){
 			rtc.onmessage(event.data.msg);
 			rtc.onnoticemessage(event.userid, 'custom', event.data);
 		}
-		
 	}
 }
 
