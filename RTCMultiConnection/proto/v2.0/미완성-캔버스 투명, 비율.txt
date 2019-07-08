@@ -1,0 +1,290 @@
+/*!
+ *
+ * RemoteMeeting - drawing-core.js
+ *
+ * IMPORTANT NOTE: This file is licensed only for use in providing the RSUPPORT services,
+ *
+ * @license Copyright (c) RSUPPORT CO., LTD. (http://www.rsupport.com/)
+ * @author Front-End Team | Park Jeong Shik (jspark@rsupport.com)
+ * @fileOverview Canvas Context 핸들링 메서드
+ *
+ */
+
+/**
+ *
+ * @class DrawingCore
+ */
+function DrawingCore(options) {
+  console.info('Loaded DrawingCore');
+
+  var that = this;
+  var penWidth = options.penWidth;
+  var eraserWidth = options.eraserWidth;
+
+  that.realCanvas = null;
+  that.realCtx = null;
+  that.tempCanvas = null;
+  that.tempCtx = null;
+  that.tempCanvasArr = [];
+  that.tempCtxArr = [];
+  that.currentPage = 1; // 현재 문서 페이지
+
+  /**
+   * state
+   *
+   * scale 처리와 리사이즈 복원을 위해,
+   * realCanvas에서 이벤트를 받아서 tempCanvas에 draw하고 상황별로 realCanvas에 copy한다.
+   * 핵심, tempCavas의 이미지는 1:1 사이즈를 유지해야 한다.
+   */
+  var state = {
+    /**
+     * createTemp
+     * temporary canvas 생성
+     *
+     * @param {number} length real canvas count
+     */
+    createTemp: function(length) {
+      console.log('state.createTemp()', arguments, that.realCanvas.width, that.realCanvas.height);
+      that.tempCanvasArr = [];
+      that.tempCtxArr = [];
+
+      for (var i=1; i <= length; i++) {
+        that.tempCanvas = document.createElement('canvas');
+        that.tempCtx = that.tempCanvas.getContext('2d');
+        that.tempCanvas.id = "temp-" + i;
+        that.tempCanvas.width = that.realCanvas.width;
+        that.tempCanvas.height = that.realCanvas.height;
+
+        that.tempCanvasArr.push(that.tempCanvas);
+        that.tempCtxArr.push(that.tempCtx);
+      }
+
+      that.tempCtx = that.tempCtxArr[0];
+    },
+
+    /**
+     * updateRealCanvas
+     * scale처리시 temporary canvas에 그린 그림을 realCanvas에 적용한다.
+     *
+     * @param {number} targetIndex
+     * @param {number} scale 1, 1.5 2.0 etc...
+     */
+    updateRealCanvas: function(targetIndex, scale) {
+      console.log('state.updateRealCanvas', arguments);
+
+      var originalSize = $(that.realCanvas).data('originalSize');
+      if (!originalSize) {
+        return false;
+      }
+
+      var width = originalSize.width; // 최초 정의된 높이값을 기준으로 비율을 처리한다.
+      var height = originalSize.height;
+      var newWidth = width * scale;
+      var newHeight = height * scale;
+
+      // repositioning
+      that.realCanvas.width = newWidth;
+      that.realCanvas.height = newHeight;
+
+      // scaling
+      that.realCtx.clearRect(0, 0, width, height);
+      that.realCtx.save(); // 100% 기준치로 상태 저장 (줌 미적용 상태 저장)
+      //that.realCtx.translate(scaleWidthGap, 0);
+      that.realCtx.scale(scale, scale);
+      that.realCtx.drawImage(that.tempCanvasArr[targetIndex], 0, 0); // redraw
+      that.realCtx.restore(); // 상태 복원, 줌 배율 조정시 100% 기준으로 하기 위해 처리함.
+    },
+
+    /**
+     * restore
+     * 리사이징시 temporary canvas에 저장된 그림 real canvas에 redraw
+     * 복잡도 증가가 염려되어 updateRealCanvas() 와 분리
+     *
+     * @param {number} targetIndex target real canvas index
+     * @param {number} width target real canvas width
+     * @param {number} height target real canvas height
+     * @param {number} widthGap between prev size and current
+     */
+    restore: function(targetIndex, width, height, widthGap) {
+      console.log('state.restore()', arguments);
+
+      var zoomScale = documentViewer.getZoomScale();
+      var newWidth = width * zoomScale;
+      var scaleWidthGap = -((newWidth-width) / 2) + (widthGap * zoomScale);
+
+      that.realCtx = that.realCanvas.getContext('2d');
+      that.realCtx.save(); // 상태 저장, 줌 미적용 상태 저장
+      that.realCtx.translate(scaleWidthGap, 0);
+      that.realCtx.scale(zoomScale, zoomScale);
+      that.realCtx.drawImage(that.tempCanvas, 0, 0);
+      that.realCtx.restore(); // 상태 복원, 줌 배율 조정시 100% 기준으로 하기 위해 처리함.
+    }
+  };
+
+  /**
+   * pen
+   */
+  var pen = {
+    start: function(data, zoomScale) {
+      console.log('pen.start', data);
+
+      var ppts = data.ppts;
+      ppts.push({
+        x: data.x / zoomScale,
+        y: data.y / zoomScale
+      });
+    },
+    draw: function(data, zoomScale) {
+      console.log('pen.draw', arguments);
+
+      var ppts = data.ppts;
+      var startX = ppts[0].x;
+      var startY = ppts[0].y;
+      var currentX = data.currentPoint.x;
+      var currentY = data.currentPoint.y;
+
+      startX = startX / zoomScale;
+      startY = startY / zoomScale;
+      currentX = currentX / zoomScale;
+      currentY = currentY / zoomScale;
+      ppts.push({x: currentX, y: currentY});
+
+      // draw tempCtx
+      that.tempCanvas = that.tempCanvasArr[data.page - 1];
+      that.tempCtx = that.tempCtxArr[data.page - 1];
+      that.tempCtx.globalCompositeOperation = 'source-over'; // 기본 설정으로 새로운 도형을 위에 그린다.
+      that.tempCtx.strokeStyle = transformColorFormat(data.color);
+      that.tempCtx.lineWidth = data.thickness || penWidth;
+      that.tempCtx.lineJoin = 'round';
+      that.tempCtx.lineCap = 'round';
+
+      // that.tempCtx.clearRect(0, 0, that.tempCanvas.width, that.tempCanvas.height); // TODO for Line Anti-Aliasing
+      that.tempCtx.beginPath();
+      that.tempCtx.moveTo(startX, startY);      // 시작점
+
+      // 라인의 각짐 현상 개선을 위해 중간값을 만들어 quadraticCurveTo() 사용하여 라인 생성.
+      // REF - https://www.w3schools.com/tags/tryit.asp?filename=tryhtml5_canvas_quadraticcurveto
+      var i;
+      for (i = 0; i < ppts.length - 1; i++) {
+        var cpx = ppts[i].x;
+        var cpy = ppts[i].y;
+        var x = (cpx + ppts[i + 1].x) / 2;
+        var y = (cpy + ppts[i + 1].y) / 2;
+        that.tempCtx.quadraticCurveTo(cpx, cpy, x, y); // (시작점으로 부터 곡선의 X 정도, 시작점으로 부터 곡선의 Y정도, 선의 X끝, 선의 Y끝);
+      }
+      // console.log('확인 ppts', ppts);
+
+      // For the last 2 points
+      // that.tempCtx.quadraticCurveTo(
+      //   ppts[i].x,
+      //   ppts[i].y,
+      //   ppts[i + 1].x,
+      //   ppts[i + 1].y
+      // );
+      that.tempCtx.stroke();
+
+      // update temp to real
+      if (that.currentPage === data.page) {
+        state.updateRealCanvas(that.tempCtxArr.indexOf(that.tempCtx), zoomScale);
+      }
+    },
+    end: function(data) {
+      console.log('pen.end', data);
+
+      if (data) {
+        data.ppts = [];
+      }
+
+      // that.tempCtx = that.tempCtxArr[0];
+      // var zoomScale = documentViewer.getZoomScale();
+      // state.updateRealCanvas(that.tempCtxArr.indexOf(that.tempCtx), zoomScale);
+    }
+  };
+
+  /**
+   *  eraser
+   */
+  var eraser = {
+    start: function(data, isMine) {
+      console.log('eraser.start', arguments);
+
+      if (isMine) {
+        $(that.realCanvas).addClass('eraser');
+      }
+    },
+    draw: function(data, zoomScale) {
+      console.log('eraser.draw', arguments);
+
+      var startX = data.startPoint.x;
+      var startY = data.startPoint.y;
+      var currentX = data.currentPoint.x;
+      var currentY = data.currentPoint.y;
+
+      startX = startX / zoomScale;
+      startY = startY / zoomScale;
+      currentX = currentX / zoomScale;
+      currentY = currentY / zoomScale;
+
+      // draw tempCtx
+      // REF https://developer.mozilla.org/ko/docs/Web/HTML/Canvas/Tutorial/Compositing
+      that.tempCtx = that.tempCtxArr[data.page - 1];
+      that.tempCtx.globalCompositeOperation = 'destination-out'; // 새롭게 그려지는 도형이 이전 그림과 겹치는 부분을 투명하게 바꾼다.
+      that.tempCtx.fillStyle = 'rgba(0,0,0,1)';
+      that.tempCtx.strokeStyle = 'rgba(0,0,0,1)';
+      that.tempCtx.lineWidth = eraserWidth;
+
+      that.tempCtx.beginPath();
+      that.tempCtx.moveTo(startX, startY);      // 시작점
+      that.tempCtx.lineTo(currentX, currentY);  // 현재점
+      that.tempCtx.stroke();
+
+      // update temp to real
+      if (that.currentPage === data.page) {
+        state.updateRealCanvas(that.tempCtxArr.indexOf(that.tempCtx), zoomScale);
+      }
+    },
+    end: function() {
+      $(that.realCanvas).removeClass('eraser');
+    }
+  };
+
+  /**
+   * transformColorFormat
+   * transform array to rgba(255,0,0,1) format string
+   *
+   * @param {Object} arr RGBA Array
+   * @return {String} color text
+   */
+  function transformColorFormat(arr) {
+    var c = arr;
+    try {
+      c = 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + c[3] + ')';
+    } catch(e) {
+      // c 배열이 '0' 오류가 나는경우 그리기가 안되서 보완 처리.
+      console.log('transformColorFormat err', e);
+    }
+    return c;
+  }
+
+  /**
+   * point
+   * @param {Object} event
+   * @returns {{x: number, y: number}}
+   */
+  function point(event) {
+    console.log('point', arguments);
+
+    return {
+      x: event.offsetX,
+      y: event.offsetY
+    };
+  }
+
+  /**
+   * interfaces
+   */
+  this.state = state;
+  this.pen = pen;
+  this.eraser = eraser;
+  this.point = point;
+}

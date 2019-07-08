@@ -1,0 +1,1028 @@
+/*!
+ *
+ * RemoteMeeting - document-viewer-opener.js
+ *
+ * IMPORTANT NOTE: This file is licensed only for use in providing the RSUPPORT services,
+ *
+ * @license Copyright (c) RSUPPORT CO., LTD. (http://www.rsupport.com/)
+ * @author Front-End Team | Park Jeong Shik (jspark@rsupport.com)
+ * @reference document-viewer-opener.js (firejune@gmail.com)
+ * @fileOverview 문서 뷰어 opener
+ *
+ */
+
+/**
+ *
+ * @class DocumentViewerOpener
+ * @param {object} parent (Meeting Instance)
+ *
+ */
+
+/**
+ * TODO
+ * fit-width, fit-height 크기에 비례하여 scale값 구하기 O
+ * 파일명 노출하여 노출하기 O
+ * 이미지 노출 처리 O
+ * 페이지 end, home 키보드 이벤트 aside 포커스 정확도 처리
+ * fit-width, fit-height 시 리사이징 처리
+ * 다중 문서 업로드시 마지막 문서 제외하고 options.document.push() 안되는 문제 수정 필요 -> 복수 문서 변환시 process를 별도 체크 하도록 수정 필요.
+ */
+function DocumentViewerOpener(parent) {
+  console.info('Loaded DocumentViewerOpener');
+
+  // service info
+  var that = this;
+  var toolbar = parent.toolbar;
+  var socket = parent.socket;
+  var api = parent.api;
+  var utils = parent.utils;
+  var language = parent.language;
+  var isEdge = parent.isEdge;
+  var isMobile = parent.isMobile;
+
+  //var documentServerDomain = 'https://dev1doc.remotemeeting.com';
+  var documentServerDomain = api.getDocumentServer();
+  var conferenceID = parent.conferenceID;
+  var endpointID = parent.getUserInfo().endpointID;
+  var rlog = parent.rlog;
+
+  // for document viewer
+  var docViewer = new DocumentViewer({
+    serverAddress: documentServerDomain,
+    appendTargetId: 'document-container',
+    useAnimation: false, // TODO 상대방 그리기중 스케일 변경시 에니메이션 도중 그림 좌표가 그려지는 이슈로 제거함
+    hideNavigation: parent.isMobile,
+  });
+
+  // for document info & state
+  var conversionDocList = null;
+  var currentDocInfo = null;
+  var uploadMaxSize = 104857600; // 100MB -> 104857600 byte
+  var uploadFileType = [
+    'text/plain',
+    'application/pdf',
+    'application/vnd.epapyrus.pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.hancom.hwp',
+    'application/x-hwp',
+    'application/haansofthwp', // Win7 큐티 집 PC에서 haansoft*로 측정됨
+    'application/haansoftpptx',
+    'application/haansoftxlsx',
+    'application/haansoftdocx',
+    'image/jpeg',
+    'image/png',
+    'image/gif'
+  ];
+  var fileType = null;
+  var currentPage = 1;
+  var totalPageCount = 0;
+  var zoomScale = 1;
+  var selectedScaleType = null;
+  var navigationType = /doc|pdf|ppt|txt|text|hwp|xl/i;
+  var imageType = /jpg|jpeg|gif|png/i;
+  var autoScaleType = /ppt|jpg|jpeg|gif|png/i;  // 스크롤이 생겨야 하는 문서 타입 제외
+  var isSync = true;
+  var syncData = null;
+  var remoteControl = false;
+  var drawing = null;
+
+  // DOM
+  var $body = parent.$body;
+  var $docShare = $('#doc-share');
+  var $docList = $('#doc-list');
+
+  // 모바일의 경우 내용이 모두 포함되도록 설정.
+  if (isMobile) {
+    autoScaleType = /doc|pdf|ppt|txt|text|hwp|xl|jpg|jpeg|gif|png/i;
+  }
+
+  /**
+   * validateFile
+   * @param {object} file
+   * @return {boolean}
+   */
+  function validateFile(file) {
+    var name = file.name;
+    var size = file.size;
+    var type = file.type;
+    console.log('validateFile', name, type, size);
+
+    // 파일이 없는데 이벤트 타는 경우 예외 처리
+    if (!name) {
+      return false;
+    }
+
+    // No Detect MiMETYPE (pptx, xls) in win10
+    // 파일 타입이 넘어오는 경우에만 체크 하도록함
+    if (type && uploadFileType.indexOf(type) < 0) {
+      $.msgBox($.i18n.RM00698 + ' (' + type + ')'); // 변환 할 수 없는 파일 형식 입니다.
+      toolbar.toggleDocShare(false);
+      toolbar.resetDocUploadInput();
+      return false;
+    }
+
+    if (uploadMaxSize < size) {
+      $.msgBox($.i18n.RM00699.replace('#', '100MB')); // 최대 업로드 크기는 100MB 이하 입니다.
+      toolbar.toggleDocShare(false);
+      toolbar.resetDocUploadInput();
+      return false;
+    }
+
+    if (size === 0) {
+      $.msgBox($.i18n.RM00919); // 빈 파일입니다. 파일을 확인 해주세요
+      toolbar.toggleDocShare(false);
+      toolbar.resetDocUploadInput();
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * initToolbar
+   * 문서 로드후 메뉴 활성화 처리
+   */
+  function initToolbar() {
+    $('#draw-hide, #draw-pointer, #draw-pen').removeAttr('disabled');
+  }
+
+  /**
+   * 문서 스케일 조정
+   * @param fileType
+   * @param selectedScale
+   */
+  function updateDocumentScale(fileType, selectedScale) {
+    console.log('updateDocumentScale', fileType, selectedScale);
+
+    if (selectedScale) {
+      docViewer.updateScale(selectedScale);
+    } else {
+      // 자동 맞춤 타입
+      if (fileType.match(autoScaleType)) {
+        docViewer.setAutoScale();
+      } else {
+        // Scale 100% 로 문서 열린다.
+      }
+    }
+  }
+
+  /**
+   * setDocument
+   * 문서뷰어를 append 합니다.
+   * @param data
+   */
+  function setDocument(data) {
+    console.log('setDocument', arguments);
+
+    totalPageCount = data.totalPageCount;
+    fileType = data.fileType;
+    docViewer.init({
+      totalPageCount: totalPageCount,
+      resultDirPath: data.resultDirPath,
+      fileId: data.fileId,
+      fileType: fileType
+    });
+
+    // set mode
+    if (fileType.match(navigationType)) {
+      toolbar.docTools.show('navigation');
+      $body.addClass('has-navigation');
+
+      if (totalPageCount === 1) {
+        toolbar.docTools.show('documentation');
+      }
+    } else {
+      toolbar.docTools.show('documentation');
+    }
+
+    // set info
+    toolbar.docTools.setTotalPage(totalPageCount);
+
+    // bind
+    docViewer.onChangePage = function(page) {
+      onChangePage(page);
+      drawing.changePage(page); // 그리기 그림 변경 처리 위함.
+    };
+    docViewer.onScroll = onScroll;
+
+    // TODO toolbar.js로 분리
+    // 뷰어 스케일 조정에 대한 리스너
+    docViewer.onUpdateScale = function(scale, selectedValue) {
+      console.log('확인 onUpdateScale', arguments);
+
+      zoomScale = scale;
+      drawing.updateScale(zoomScale);
+      $('#scale-tools').find('select').val(selectedValue);
+    };
+
+    // set scale
+    $('#scale-tools').off().on('change', 'select', function() {
+      selectedScaleType = this.value;
+      docViewer.updateScale(selectedScaleType);
+    });
+
+    // 문서 노출 시작 이후 후처리
+    // canvas append, scale, toolbar 처리
+    docViewer.onStartPageShowing = function() {
+      drawing.appendCanvas(that.getDrawContainer(), totalPageCount);
+      drawing.pointer.init();
+
+      if (drawing.dragging) {
+        drawing.forceMouseup();
+      }
+
+      selectedScaleType = null;
+      updateDocumentScale(fileType);
+      initToolbar();
+    };
+
+    return true;
+  }
+
+  /**
+   * 키보드, 리사이즈 이벤트 바인딩
+   */
+  function bindParentEvent() {
+    parent.on('keydown', function(event) {
+      if (parent.mod === 'document') {
+        keydown(event);
+      }
+    }).on('resize', function() {
+      if (docViewer.getHasScaleInit()) {
+        setTimeout(function() {
+          updateDocumentScale(fileType, selectedScaleType);
+        }, 100);
+      }
+    });
+  }
+
+  /**
+   * upload
+   * 문서 업로드 관리
+   */
+  var upload = {
+    uploadPath: documentServerDomain + '/document/upload',
+    progressPath: documentServerDomain + '/document/progress',
+    curProgressCheckingCount: 0,
+    maxProgressCheckingCount: 10,
+    files: null,
+    file: null,
+    resultDirPath: null,
+    fileId: null,         // 서버 저장된 고유 ID
+    fileName: null,       // 실제 파일명
+    fileType: null,
+    /**
+     * getFileType
+     * @param fileName
+     * @returns {string}
+     */
+    getFileType: function(fileName) {
+      var fileLen = fileName.length;
+      var lastDot = fileName.lastIndexOf('.');
+      var fileType = fileName.substring(lastDot, fileLen).toLowerCase();
+      return fileType;
+    },
+    /**
+     * start
+     * @param {object} files
+     * @param {object} options
+     */
+    start: function(files, options) {
+      console.log('upload.start', arguments);
+
+      var self = this;
+      var convensionSize = {
+        original: 800,
+        thumb: 120
+      };
+      var formData = new FormData();
+      var file = files.shift();
+
+      self.file = file;
+      self.files = files;
+      self.fileName = file.name;  // 실제 파일명
+      self.fileType = self.getFileType(self.fileName);
+      console.log('확인 fileName', self.fileName, self.fileType);
+      parent.ga.send('send-file', self.fileType);
+
+      if (self.fileType.match(/ppt|xl/)) {
+        convensionSize.original = 1200;
+      }
+
+      // append form data
+      formData.append("file", file);
+      formData.append("originalSize", convensionSize.original);
+      formData.append("thumbSize", convensionSize.thumb);
+
+      $.ajax({
+        url: self.uploadPath,
+        type: "post",
+        data: formData,
+        contentType: false,
+        processData: false,
+        crossDomain: true,
+        xhrFields: {
+          withCredentials: true
+        },
+        beforeSend: function(xhr) {
+          xhr.setRequestHeader("Authorization", parent.getStorage('authorizationKey'));
+          xhr.setRequestHeader("X-Language", language);
+        },
+        success: function(res) {
+          var code = res.returnCode;
+          var data = res.returnData;
+          var message = res.message;
+
+          if (code === '40100') {
+            setTimeout(function() {
+              self.next(data, options);
+            }, 2000);
+          } else if (message) {
+            alert(message + '\n' + api.getCodeString(code));
+            self.reset();
+          } else {
+            $.msgBox('Unknown error' + ' ' + api.getCodeString(code));
+            self.reset();
+          }
+        },
+        error: function(req) {
+          console.error('FILE UPLOAD ERROR', req, file);
+          self.reset();
+
+          if (req.statusText === 'abort') {
+            return false;
+          }
+
+          switch (req.status) {
+            case 400:
+              $.msgBox($.i18n.RM00137);  // 이미 서버에 존재 하는 문서입니다.
+              break;
+            case 401:
+              $.msgBox('Unauthorized');
+              break;
+            case 413:
+              $.msgBox('Maximum size exceeded (100MB)');
+              break;
+            default:
+              $.msgBox($.i18n.RM00138); // 파일 업로드에 실패하였습니다. 다시 시도해 주세요.
+              break;
+          }
+        },
+        xhr: function() {
+          var xhr = $.ajaxSettings.xhr();
+          if (xhr.upload) {
+            xhr.upload.addEventListener('progress', function(e) {
+              if (e.lengthComputable) {
+                var done = e.loaded;
+                var percent = ((options.loaded + done) / options.total) * 100;
+
+                console.log('progress', percent);
+                toolbar.progress.update(percent);
+              }
+            }, false);
+          }
+          return xhr;
+        }
+      });
+    },
+    next: function(data, options) {
+      console.log('upload.next', arguments);
+
+      var self = this;
+      self.resultDirPath = data.uploadDir; // 저장 디렉토리 경로
+      self.fileId = data.fileId;           // 서버 저장된 문서 고유키
+      self.fileName = data.fileName;
+
+      // 다음 문서 업로드 시작
+      if (self.files.length) {
+        options.loaded += self.file.size;
+        self.start(self.files, options);
+      } else {
+        // 이미지는 변환하지 않기때문에 RCD 업데이트, 그외 문서는 변환 체크
+        if (self.fileType.match(imageType)) {
+          var obj = {
+            resultDirPath: self.resultDirPath,
+            fileId: self.fileId,
+            fileName: self.fileName,
+            fileType: self.fileType,
+            totalPageCount: 1
+          };
+
+          self.updateRCD(obj);
+          options.documents.push(obj);
+          options.callback(options.documents);
+          self.reset();
+        } else {
+          self.checkProgress(options);
+        }
+      }
+    },
+    checkProgress: function(options) {
+      console.log('upload.checkProgress', arguments);
+      var self = this;
+
+      // 5회 동안 변환이 안될 경우 오류 처리. (3초 단위 실행, 총 15초)
+      self.curProgressCheckingCount++;
+      if (self.maxProgressCheckingCount <= self.curProgressCheckingCount) {
+        $.msgBox($.i18n.RM00138 + ' (Error progressing)'); // 파일 업로드에 실패하였습니다. 다시 시도해 주세요.
+
+        api.conference.updateCDR({
+          result: 'fail',
+          code: '1004',
+          message: 'Error progressing'
+        });
+        self.reset();
+        return false;
+      }
+
+      $.ajax({
+        url: self.progressPath,
+        type: 'get',
+        async: false,
+        data: {
+          uploadDir: self.resultDirPath,
+          fileId: self.fileId
+        },
+        success: function(res) {
+          console.log('확인', res);
+
+          var code = res.returnCode;
+          var data = res.returnData;
+
+          //data.total
+          //data.originalEncryptCount
+          //data.thumbEncryptCount
+
+          if (code !== "40100") {
+            api.conference.updateCDR({
+              result: 'fail',
+              code: '1004',
+              message: data.resultCode
+            });
+
+            $.msgBox($.i18n.RM00138 + ' (Error progressing)'); // 파일 업로드에 실패하였습니다. 다시 시도해 주세요.
+            self.reset();
+
+            return false;
+          }
+
+          var obj = {
+            resultDirPath: self.resultDirPath,
+            fileId: self.fileId,
+            fileName: self.fileName,
+            fileType: self.fileType,
+            totalPageCount: data.total
+          };
+
+          if (!data.total || !data.originalEncryptCount) {
+            setTimeout(function() {
+              self.checkProgress(options);
+            }, 3000);
+          } else {
+            self.updateRCD(obj);
+            options.documents.push(obj);
+            options.callback(options.documents);
+            self.reset();
+          }
+        },
+        error: function(req) {
+          console.error('확인 checkProgress', arguments);
+        }
+      });
+    },
+    updateRCD: function(obj) {
+      // 재접속 처리를 위해 현재 conference RCD에 도큐먼트 목록을 업데이트한다.
+      api.conference.updateRCD({
+        RCD: {
+          conference: {
+            conferenceID: conferenceID
+          },
+          documents: [obj]
+        }
+      }, function() {
+        console.log('확인 RCD 문서 정보 업데이트 완료');
+      });
+    },
+    reset: function() {
+      toolbar.progress.end();
+      toolbar.resetDocUploadInput();
+      this.curProgressCheckingCount = 0;
+      hideDocumentList();
+    }
+  };
+
+  /**
+   * onChangePage
+   * @param {number} page
+   */
+  function onChangePage(page) {
+    toolbar.docTools.setCurrentPage(currentPage = page);
+
+    if (drawing.pointer) {
+      drawing.pointer.changeVisibility(currentPage); // 현재 페이지의 포인터만 노출 처리
+    }
+
+    if ($body.hasClass('doc-owner')) {
+      send("documentPageChanged", {
+        "page" : currentPage
+      });
+    }
+
+    // // 텝전환시 그림도구 리셋.
+    // if (fileType.match(/xls/)) {
+    //   $('#draw-hide, #draw-pointer, #draw-pen').attr('disabled', true);
+    //   $('#draw-pointer, #draw-pen').removeClass('active');
+    //   $('#draw-hide').addClass('active');
+    // }
+  }
+
+  /**
+   * keydown
+   * @param {object} event
+   */
+  function keydown(event) {
+    //console.log('keydown', event);
+    var keyCode = event.keyCode;
+
+    if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) {
+      return;
+    }
+
+    // input text에 spacebar가 안먹히는 증상이 있으면 여기에 조건을 추가해야함
+    // 회의록 이벤트 간섭 처리.
+    if (event.target && event.target.tagName === 'TEXTAREA' || event.target.tagName === 'INPUT') {
+      return;
+    }
+
+    switch (keyCode) {
+      case 33: // page up
+      case 37: // left
+      case 38: // up
+        that.showPrevPage();
+        event.preventDefault();
+        break;
+      case 34: // page down
+      case 39: // right
+      case 40: // down
+        that.showNextPage();
+        event.preventDefault();
+        break;
+      case 36: // home
+        that.showPage(1);
+        event.preventDefault();
+        break;
+      case 35: // end
+        that.showPage(totalPageCount);
+        event.preventDefault();
+        break;
+    }
+  }
+
+  /**
+   * onScroll
+   */
+  function onScroll(data) {
+    //console.log('onScroll', arguments);
+
+    if (data) {
+      var $container = that.getDrawContainer();
+      var scrollTop = data.top;
+      var scrollLeft = data.left;
+
+      if (!remoteControl && $body.hasClass('doc-owner')) {
+        send("documentScrollChanged", {
+          "page": currentPage,
+          "width": $container.width(),
+          "height": $container.height(),
+          "scrollTop": scrollTop,
+          "scrollLeft": scrollLeft
+        });
+      }
+
+      remoteControl = false;
+    }
+  }
+
+  /**
+   * clear
+   */
+  function clear() {
+    currentPage = 1;
+    totalPageCount = 0;
+    currentDocInfo = null;
+    toolbar.docTools.reset();
+    docViewer.terminate();
+  }
+
+  /**
+   * send
+   * @param {string} messageId
+   * @param {object} data
+   * @param {string} targetEndpointID optional
+   */
+  function send(messageId, data, targetEndpointID) {
+    var message = {};
+    var user = parent.getUserInfo();
+
+    data = data || {};
+    data.endpointID = user.endpointID;
+    message[messageId] = data;
+
+    if (targetEndpointID) {
+      socket.publish('/RCCP/CON/' + conferenceID + '/' + targetEndpointID, message);
+    } else {
+      socket.publish('/RCCP/CON/' + conferenceID, message);
+      parent.sendMessageToAmsServer(message);
+    }
+  }
+
+  /**
+   * hideDocumentList
+   * 문서함 닫기
+   */
+  function hideDocumentList() {
+    parent.toolbar.toggleDocShare(false);
+    parent.toolbar.documentList.hide();
+  }
+
+  /**
+   * open
+   * @param {object} docs array
+   */
+  this.open = function(docs) {
+    console.log('this.open', arguments);
+    var doc = docs[0];
+
+    clear();
+    setDocument(currentDocInfo = doc);
+
+    // 문서함에 정보 추가
+    parent.toolbar.documentList.add(docs);
+    parent.toolbar.documentList.select({
+      fileId: doc.fileId,
+      displayName: parent.usersInfo[parent.modOwnerID].displayName
+    });
+
+    // 문서 열리면 문서함 닫기.
+    hideDocumentList();
+
+    // 문서 모드시엔 전체화면 모드에서도 툴바 노출
+    if ($body.hasClass('full-screen')) {
+      toolbar.show();
+    }
+
+    //console.log('확인, 문서 로드 ',  parent.modOwnerID, endpointID, docs);
+
+    // 주최자만 전송 (스크린모드에서 문서모드로 전환시 실행 시점 맞추기위해 switch()함수에서 이동함)
+    if (parent.modOwnerID === endpointID) {
+      send("documentShareStarted", {
+        "documents": docs
+      });
+      
+      // 로그 전송 (문서공유주최)
+      api.conference.updateAccessLog({
+        "conferenceID" : conferenceID,
+        "action" : "0x4000"
+      }, function(data) {
+        console.log('updateAccessLog 완료', data);
+      });
+    }
+  };
+
+  /**
+   * switch
+   * 문서 최초 및 스위칭시 open()을 실행하기 위해 parent에 정보를 전달하는 함수
+   * @param {object} docs array
+   */
+  this.switch = function(docs) {
+    console.log('switch', arguments);
+
+    // 문서가 열려있는경우 완전 종료후 재시작.
+    // 그리기 사용중 종료시 완전종료 시켜야 그리기 재사용 가능함.
+    if (currentDocInfo) {
+      that.close();
+    }
+
+    /*
+     TODO close() 후 재시작시 Uncaught TypeError: Cannot read property 'opener' of undefined
+     오류 나는 경우 있어서 약간의 텀을둠
+     */
+    setTimeout(function() {
+      parent.modOwnerID = parent.getUserInfo().endpointID;
+      parent.emit('document', docs);
+      parent.emit('changeModOwner');
+      if ($body.hasClass('doc-viewer')) {
+        $body.removeClass('doc-viewer');
+      }
+      $body.addClass('doc-owner');
+      $docShare.addClass('using');
+      rlog({type: 'system', action: 'doc-start', value: docs});
+      conversionDocList = docs;
+    }, 100);
+  };
+
+  /**
+   * close
+   */
+  this.close = function(options) {
+    drawing.hasCanvas && drawing.end();
+    $docShare.removeClass('using');
+    $docList.find('li').removeClass('selected');
+    $body.removeClass('has-navigation');
+    zoomScale = 1;
+
+    // 문서 오너가 종료 및 나가기시 처리
+    if ($body.hasClass('doc-owner')) {
+      send("documentShareFinished");
+      rlog({type: 'system', action: 'doc-end'});
+    }
+
+    // 문서만 교체하는 경우 안타고 문서공유 모드 종료시 처리함
+    if (options && options.closeMode) {
+      $body.removeClass('doc-viewer doc-owner'); // doc-viewer가 스크린쉐어를 시작했을때 문서 종료 처리
+
+      // 스크린쉐어 시작 패킷을 받고 문서 공유 주체자 종료하기 때문에
+      // 스크린쉐어 시작된 후 문서 종료처리된경우 제외하고 처리.
+      if (parent.mod !== 'screen') {
+        parent.emit('video'); // 모드 변경 먼저 되야함.
+      }
+      parent.emit('changeModOwner');
+      clear();
+      conversionDocList = null;
+
+      parent.hideMainLoader();
+      toolbar.docTools.hide();
+      toolbar.documentList.reset();
+
+      // 문서 시작시 툴바를 노출시키기 때문에 문서 종료시 전체화면 모드라면 툴바 hide()
+      if ($body.hasClass('full-screen')) {
+        toolbar.hide();
+      }
+    }
+  };
+
+  /**
+   * sendNewUserDocStart
+   * 문서공유중 참석자 모드 싱크 처리.
+   * @param {string} targetEndpointID
+   */
+  this.sendNewUserDocStart = function(targetEndpointID) {
+    console.log('sendNewUserDocStart', arguments);
+
+    send("documentShareStarted", {
+      "documents": conversionDocList
+    }, targetEndpointID);
+
+    // 페이징처리
+    setTimeout(function() {
+      if (fileType && fileType.match(navigationType)) {
+        send("documentPageChanged", {
+          "page" : currentPage
+        }, targetEndpointID);
+      }
+
+      onScroll();
+    }, 3000);
+  };
+
+  /**
+   * setScroll
+   * @param {optional} data
+   */
+  this.setScroll = function(data) {
+    if (data.page !== currentPage) {
+      return false;
+    }
+
+    var $container = that.getDrawContainer();
+    if ($container) {
+      // 변환 문서에 스케일이 적용되는것만 사이즈 비율 측정후 스크롤 처리
+      var scaleWidth = $container.width() / data.width;
+      var scaleHeight = $container.height() / data.height;
+      var scrollTop = (data.scrollTop * scaleHeight) * zoomScale;
+      var scrollLeft = (data.scrollLeft * scaleWidth) * zoomScale;
+      remoteControl = true;
+
+      docViewer.setScroll({
+        top: scrollTop,
+        left: scrollLeft
+      });
+      console.log('setScroll scrollLeft 정보', data.scrollLeft, scaleWidth);
+      console.log('setScroll scrollTop 정보', data.scrollTop, scaleHeight);
+    }
+  };
+
+  /**
+   * showPage
+   * @param {number} num
+   */
+  this.showPage = function(num) {
+    console.log('showPage', arguments);
+
+    if (0 >= num) {
+      num = 1;
+    } else {
+      (num > totalPageCount) && (num = totalPageCount);
+    }
+
+    if (currentPage !== num) {
+      docViewer.changePage(currentPage = num);
+
+      if (drawing.pointer) {
+        drawing.pointer.forceMouseup();
+        drawing.pointer.changeVisibility(currentPage); // 현재 페이지의 포인터만 노출 처리
+      }
+
+      if (drawing.dragging) {
+        drawing.forceMouseup();
+      }
+    }
+  };
+
+  /**
+   * showNextPage
+   */
+  this.showNextPage = function() {
+    that.showPage(currentPage + 1);
+  };
+
+  /**
+   * showPrevPage
+   */
+  this.showPrevPage = function() {
+    that.showPage(currentPage - 1);
+  };
+
+  /**
+   * getDrawContainer
+   */
+  this.getDrawContainer = function() {
+    return $('#document-content');
+  };
+
+  /**
+   * changeSync
+   * @param {boolean} isDisable sync
+   */
+  this.changeSync = function(isDisable) {
+    console.log('changeSync', arguments);
+
+    isSync = (!isDisable);
+
+    // 싱크 버튼이 눌리면 마지막 데이터로 싱크한다.
+    if (isSync && syncData) {
+      if (syncData.page) {
+        that.showPage(syncData.page);
+      } else {
+        that.setScroll(syncData);
+      }
+    }
+  };
+
+  /**
+   * getZoomScale
+   */
+  this.getZoomScale = function() {
+    return zoomScale;
+  };
+
+  /**
+   * getFileType
+   * 그리기 setCanvasSize() 내부에서 xls (왼쪽정렬문서)파일 구분하기 위함.
+   */
+  this.getFileType = function() {
+    return fileType;
+  };
+
+  /**
+   * Regist socket data listener
+   */
+  socket.registKeymap({
+    'documentShareStarted': function(data) {
+      console.log('documentShareStarted', data);
+
+      // Edge에서 MQTT로 받은 메시지의 한글이 자음 모음 분리되어 넘어오는 경우 처리.
+      if (isEdge) {
+        data.documents[0].fileName = utils.normalize(data.documents[0].fileName);
+      }
+
+      var user = parent.usersInfo[data.endpointID];
+      parent.modOwnerID = data.endpointID;
+      parent.emit('document', data.documents);
+      parent.emit('changeModOwner');
+
+      if ($body.hasClass('doc-owner')) {
+        $body.removeClass('doc-owner');
+      }
+      $body.addClass('doc-viewer');
+      $docShare.addClass('using');
+
+      // 그리기 리셋
+      drawing.hasCanvas && drawing.end();
+
+      rlog({displayName: user.displayName, type: 'system', action: 'doc-start', value: data.documents});
+      $.msgBox($.i18n.RM00135.replace('#', user.displayName).replace('fileName', data.documents[0].fileName));
+    },
+    'documentPageChanged': function(data) {
+      console.log('documentPageChanged', data, isSync);
+
+      if (isSync) {
+        that.showPage(data.page);
+      } else {
+        syncData = data;
+      }
+    },
+    'documentScrollChanged': function(data) {
+      console.log('documentScrollChanged', data, isSync);
+
+      if (isSync) {
+        that.setScroll(data);
+      } else {
+        syncData = data;
+      }
+
+      if (drawing.pointer.dragging) {
+        drawing.pointer.forceMouseup();
+      }
+    },
+    'documentShareFinished': function(data) {
+      console.log('documentShareFinished', data);
+      var user = parent.usersInfo[data.endpointID];
+
+      that.close({closeMode: true});
+      $('#sync').removeClass('active');
+      isSync = true;
+      /*
+       화면공유중 문서공유 시작했을때 화면공유 종료후 노출되도록 로그 순서 맞추기 위해 처리.
+       문서모드중 화면공유 시작은?
+       */
+      rlog({displayName: user.displayName, type: 'system', action: 'doc-end'});
+      $.msgBox($.i18n.RM00136.replace('#', user.displayName));
+    }
+  });
+
+  /*
+   * Toolbar Listener
+   */
+  toolbar.on('presenter.create', function(files) {
+    var queue = [];
+    var total = 0;
+
+    for (var i = 0; i < files.length; i++) {
+      var file = files[i];
+
+      if (!validateFile(file)) {
+        return false;
+      }
+
+      total += file.size;
+      queue.push(file);
+    }
+
+    upload.start(queue, {
+      loaded: 0,
+      total: total,
+      documents: [],
+      callback: function(docs) {
+        if (docs.length) {
+          that.switch(docs);
+        }
+      }
+    });
+
+    // 업로드 진행 중 다른 문서 업로드시 progress reset
+    if (toolbar.progress.isShowing) {
+      toolbar.progress.end();
+    }
+    toolbar.progress.start();
+
+  }).on('presenter.close', function() {
+    that.close({closeMode: true});
+  });
+
+  toolbar.on('presenter.next', this.showNextPage);
+  toolbar.on('presenter.prev', this.showPrevPage);
+  toolbar.on('presenter.showPage', this.showPage);
+  toolbar.on('presenter.switch', this.switch);
+  toolbar.on('presenter.sync', this.changeSync);
+
+  // Drawing Toolbar Listener
+  drawing = new Drawing(parent, that);
+  toolbar
+    .on('drawing.hideDrawing', drawing.hide)
+    .on('drawing.usePointer', drawing.usePointer)
+    .on('drawing.usePen', drawing.usePen)
+    .on('drawing.changeColor', drawing.changeColor)
+    .on('drawing.useEraser', drawing.useEraser)
+    .on('drawing.useRemoveAll', function() {
+      drawing.clearAll(null, true);
+    });
+
+  // Parent event Listener
+  bindParentEvent();
+}

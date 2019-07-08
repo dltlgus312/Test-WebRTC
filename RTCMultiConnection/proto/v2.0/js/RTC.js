@@ -21,22 +21,9 @@
 var path = '';
 document.write("<script type='text/javascript' src='" + path + "/node_modules/webrtc-adapter/out/adapter.js'></script>");
 document.write("<script type='text/javascript' src='" + path + "/node_modules/rtcmultiConnection/dist/RTCMultiConnection.js'></script>"); 
+document.write("<script type='text/javascript' src='" + path + "/node_modules/canvas-designer/canvas-designer-widget.js'></script>");
 document.write("<script type='text/javascript' src='" + path + "/node_modules/jquery/dist/jquery.min.js'></script>"); 
 document.write("<script type='text/javascript' src='" + path + "/socket.io/socket.io.js'></script>"); 
-
-// ## share coding env
- // var path = '/txt';
- // document.write("<script type='text/javascript' src='" + path + "/js/adapter/adapter.js'></script>");
- // document.write("<script type='text/javascript' src='" + path + "/plugins/rtcMultiConnection/RTCMultiConnection.js'></script>"); 
- // document.write("<script type='text/javascript' src='" + path + "/node_modules/socket.io-client/dist/socket.io.js'></script>");
- 
- 
- // ## 임시 ( 카메라 없을때 에러 발생... )
- // document.write("<script type='text/javascript' src='" + path + "/plugins/canvas-designer/canvas-designer-widget.js'></script>");
-document.write("<script type='text/javascript' src='" + path + "/node_modules/canvas-designer/canvas-designer-widget.js'></script>");
- 
-// ## TEMP share coding env
-// document.write("<script type='text/javascript' src='" + path + "/js/cmmn/jquery-2.2.4.min.js'></script>");
  
 function RTC(enables){
 	
@@ -52,13 +39,6 @@ function RTC(enables){
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
 			,!!enables.screen ? path + '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
-			
-			// ## share coding env
-			 // (!!enables.record || !!enables.monitoring) ? path + '/plugins/msr/MediaStreamRecorder.min.js' : ''
-			 // ,!!enables.file ? path + '/node_modules/fbr/FileBufferReader.min.js' : ''
-			 // ,!!enables.canvas ? path + '/plugins/canvas-designer/dev/webrtc-handler.js' : ''
-			 // ,!!enables.canvas ? path + '/plugins/canvas-designer/canvas-designer-widget.js' : ''
-			 // ,!!enables.screen ? path + '/plugins/webrtc-screen-capturing/Screen-Capturing.js' : ''
 		].forEach(function(src) {
 			  var script = document.createElement('script');
 			  script.async = false;
@@ -75,6 +55,38 @@ function RTC(enables){
 	//
 	//##############################################
 	var rtc = this;
+	
+	rtc.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
+	
+	rtc.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
+	
+	rtc.designerTools = {
+			pencil: true,
+			eraser: true,
+			line: true,
+			arrow: true,
+			arc: true,
+			rectangle: true,
+			undo: true,
+			clear: true,
+			
+			fullScreen: true,
+			dragMultiple: true,
+			dragSingle: true,
+			paging: true,
+			pdf: true,
+			
+			colorsPicker: false,
+			extraOptions: false,
+			image: false,
+			text: false,
+			quadratic: false,
+			bezier: false,
+			marker: false,
+			zoom: false,
+			lineWidth: false,
+			code: false
+	}
 	
 	rtc.conn = null;
 	
@@ -160,19 +172,9 @@ function RTC(enables){
 	
 	conn.socketURL = '/';
 	
-	// ## share coding env
-	// conn.socketURL = '/webrtc';
-	// conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
-	
 	conn.dontCaptureUserMedia = true;
 	
 	conn.maxParticipantsAllowed = 9999;
-	
-	// conn.iceServers = [];
-	
-	// conn.iceServers.push(stunOption);
-
-	// conn.iceServers.push(turnOption);
 	
 	conn.session = {
 		data: !!enables.dataChannel
@@ -180,8 +182,15 @@ function RTC(enables){
 	
 	conn.enableFileSharing = !!enables.file;
 	
+	conn.fileViewer = false;
+	
+	conn.multiFilePicker = true;
+	
+	conn.shareFileInServer = false;
+	
 	rtc.conn = conn;
 	
+	// ==========================================================
 	
 	//##############################################
 	//
@@ -191,7 +200,6 @@ function RTC(enables){
 	//
 	//##############################################
 	this.setstream = function(event) {
-		
 		// @@ log
 		// console.log(event);
 		
@@ -230,6 +238,7 @@ function RTC(enables){
 		}else {
 			
 			// event : 원격 스트림 ( 녹화시작 )
+			event.stream.userid = event.userid
 			
 			rtc.remoteStreams.push(event.stream);
 			
@@ -261,10 +270,35 @@ function RTC(enables){
 		
 		
 		evt.stream.play = function(){
+			
+			var element = document.getElementById(evt.stream.streamid);
+			
 			try{
-				document.getElementById(evt.stream.streamid).play();				
-			} catch(error){
 				
+	            var played = element.play();
+
+	            if (typeof played !== 'undefined') {
+
+	            	played.then(function() {
+	                    
+	                }).catch(function(error) {
+	                	/*** iOS 11 doesn't allow automatic play and rejects ***/
+	                	setTimeout(function() {
+	                		evt.stream.play();
+	                    }, 2000);
+	                });
+	                return;
+	                
+	            }else {
+	            	
+	            	setTimeout(function() {
+	            		evt.stream.play();
+	            	}, 2000);
+	            	
+	            }
+	            
+			} catch(error){
+				console.error(error);
 			}
 		};
 		
@@ -312,8 +346,6 @@ function RTC(enables){
 			rtc.resolutionSetting(evt.stream);
 		}
 		
-		evt.stream.play();
-		
 		rtc.onstream(rtc, evt);
 	};
 	
@@ -339,7 +371,38 @@ function RTC(enables){
 	// Parameter Data : event.stream, event.mediaElement (video)
 	this.onstreamended = function(event) {
 		
-		rtc.remoteStreams.splice(event.stream, 1);
+		if(event.offlineId){
+			
+			var intervalFunction;
+			var intervalCnt = 0;
+			var hasItem = false;
+			
+			intervalFunction = setInterval(function() {
+				
+				intervalCnt = intervalCnt + 1;
+				
+				if(intervalCnt >= 3 || hasItem) {
+					clearInterval(intervalFunction);
+				}
+				
+				rtc.remoteStreams.forEach(function(stream){
+					if(stream.userid === event.offlineId){
+						rtc.onstreamended({stream : stream});
+						hasItem = true;
+					}
+				});
+				
+			}, 1000);
+			
+			return;
+			
+		}
+		
+		rtc.remoteStreams.forEach(function(item, index){
+			if(item.streamid == event.stream.streamid) {
+		    	rtc.remoteStreams.splice(index, 1);
+			}
+		});
 		
 		// 원격 피어가 하나도 없을 경우 모니터링 중지
 		if(rtc.conn.peers.getLength() === 0 && !!rtc.msr){
@@ -356,8 +419,18 @@ function RTC(enables){
 				if(!!select && !!select.parentNode){
 					select.parentNode.removeChild(select);
 				}
+				
+				delete rtc.resolutionSelect[event.stream.streamid];
 			}catch (error){
-				location.reload();
+				// setStream() 호출 시기와 onstreamended() 호출 시간의 문제로 인한 에러시 3초 후 재귀 호출
+				// location.reload();
+				// console.error(error);
+				
+				// setTimeout(function() {
+				// 	
+				// 	rtc.onstreamended(event);
+				// 	
+				// }, 1000);
 			}
 		}
 
@@ -365,7 +438,8 @@ function RTC(enables){
 			event.mediaElement = document.getElementById(event.stream.streamid);
 		}
 		
-		if (!event.mediaElement || !event.mediaElement.parentNode) {
+		if ( !event.mediaElement || !event.mediaElement.parentNode || event.mediaElement === rtc.video 
+								|| event.mediaElement === rtc.peerVideo || event.mediaElement === rtc.screen ) {
 			
 			event.stream.stop();
 			
@@ -400,6 +474,9 @@ function RTC(enables){
 		
 		if (event.data.message === 'plz-sync-points' && !!rtc.designer) {
 			rtc.designer.sync();
+			if(rtc.remoteStreams.length == 0 && rtc.video){
+				rtc.conn.addStream(rtc.video);
+			}
 			rtc.conn.syncFile(event.userid, event.data.syncFileList);
 			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 		}
@@ -459,7 +536,7 @@ RTC.prototype.onMediaCaptureError = function(error, isAudio){
 			alert("연결 가능한 카메라가 없습니다.");
 		}
 	}else if(error === 'NotReadableError'){
-		alert("알수없는 오류가 발생했습니다.");
+		alert("장치를 불러올 수 없습니다. \n다시 시도해주세요");
 	}else if(error === 'SecurityError'){
 		alert("HTTPS가 아닌 연결 에러");
 	}else if(error === 'NotSupportedError'){
@@ -694,13 +771,7 @@ RTC.prototype.fileShareSetting = function(){
 	rtc.enables.file.setAttribute("style", "overflow:auto");
 	
 	rtc.conn.filesContainer = rtc.enables.file;
-	
-	rtc.conn.fileViewer = true;
-
-	rtc.conn.multiFilePicker = true;
-
-	rtc.conn.shareFileInServer = false;
-	
+		
 }
 
 RTC.prototype.canvasShareSetting = function(){
@@ -709,43 +780,13 @@ RTC.prototype.canvasShareSetting = function(){
 	
 	var designer = new CanvasDesigner();
 	
-	designer.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
-	designer.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
-	
 	// ## share coding env
-	// designer.widgetHtmlURL = path + '/plugins/canvas-designer/widget.html';
-	// designer.widgetJsURL = path + '/plugins/canvas-designer/widget.js';
+	designer.widgetHtmlURL = rtc.widgetHtmlURL;
+	designer.widgetJsURL = rtc.widgetJsURL;
 	
 	designer.setSelected('pencil');
 	
-	designer.setTools({
-		pencil: true,
-		eraser: true,
-		line: true,
-		arrow: true,
-		arc: true,
-		rectangle: true,
-		undo: true,
-		clear: true,
-		
-		pdf: true,
-		fullScreen: true,
-		dragSingle: true,
-		dragMultiple: true,
-		paging: false,
-		
-		image: false,
-		text: false,
-		
-		quadratic: false,
-		bezier: false,
-		marker: false,
-		zoom: false,
-		lineWidth: false,
-		colorsPicker: false,
-		extraOptions: false,
-		code: false
-	});
+	designer.setTools(rtc.designerTools);
 		
 	rtc.enables.canvas = rtc.enables.canvas.exact || rtc.enables.canvas;
 	
@@ -1435,7 +1476,6 @@ RTC.prototype.stopOrStart = function(streamId, isVideo, param){
 
 RTC.prototype.sendMessage = function(msg){
 	var rtc = this;
-	
 	rtc.conn.send({custom: true, msg: msg});
 }
 
@@ -1459,6 +1499,7 @@ RTC.prototype.canvasDoSave = function(data){
 	rtc.designer.doSave(data);
 }
 // ########################################################
+
 
 
 

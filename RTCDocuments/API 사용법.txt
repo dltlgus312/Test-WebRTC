@@ -7,7 +7,7 @@ connection.enableFileSharing = true; 					파일 공유 허가
 connection.replaceTrack( stream or track );				트랙 별 통신이기에 트랙을 체인지 해준다. ( 하나의 트랙은 하나의 sender와 receiver 를 갖는다. )
 connection.DetectRTC.browser.name					브라우저 이름
 connection.peers[' Peer 사용자 아이디 '].peer.remoteDescription		RTCSessionDescription 객체 얻기
-connection.peers[' Peer 사용자 아이디 '].peer.getTranceiver		RTCRtpTranceiver 객체 읻기
+connection.peers[' Peer 사용자 아이디 '].peer.getTranceivers		RTCRtpTranceiver 객체 읻기
 connection.getAllParticipants().forEach(function(remoteId) {});		모든 유저 아이디 받기
 
 exact	정확한.. 없거나 안된다면 에러 표출! ( 기본은 근사값[사용가능한것중 아무거나]을 사용하도록 되어있다. )
