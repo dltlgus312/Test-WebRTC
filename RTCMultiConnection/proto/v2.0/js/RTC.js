@@ -1305,7 +1305,6 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		var nTrack = str.getTracks()[0];
 		
 		// param : old(stream || track), new(stream || track), remoteid, isVideo
-		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo);
 		
 		stream.removeTrack(oTrack);
 
@@ -1318,6 +1317,9 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		if(isVideo){
 			rtc.resolutionSetting(stream);
 		}
+		
+		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo);
+		
 	});
 }
 
@@ -1384,15 +1386,11 @@ RTC.prototype.shareScreen = function(){
 			
 			var newAudioTrack = newStream.getAudioTracks()[0];
 			
-			rtc.conn.replaceTrack(oldVideoTrack, newVideoTrack, null, true);
 			
 			rtc.screen.removeTrack(oldVideoTrack);
 			
 			rtc.screen.addTrack(newVideoTrack);
-			
-			oldVideoTrack.enabled = false;
-			
-			oldVideoTrack.stop();
+
 			
 			if(!!oldAudioTrack){
 				
@@ -1423,6 +1421,9 @@ RTC.prototype.shareScreen = function(){
 			}
 			
 			rtc.screen.play();
+
+			rtc.conn.replaceTrack(oldVideoTrack, newVideoTrack, null, true);
+		
 		}
 	});
 }
