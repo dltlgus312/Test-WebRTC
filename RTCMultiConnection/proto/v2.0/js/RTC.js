@@ -56,6 +56,16 @@ function RTC(enables){
 	//##############################################
 	var rtc = this;
 	
+	var stunOption = {
+		urls: 'stun:192.168.25.4:3478'
+	}
+	
+	var turnOption = {
+		urls: 'turn:211.44.246.219:3478?transport=tcp',
+		credential: 'test',
+		username: 'test'
+	};
+	
 	rtc.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
 	
 	rtc.widgetJsURL = path + '/node_modules/canvas-designer/widget.js';
@@ -69,8 +79,8 @@ function RTC(enables){
 			rectangle: true,
 			undo: true,
 			clear: true,
-			
 			fullScreen: true,
+			
 			dragMultiple: true,
 			dragSingle: true,
 			paging: true,
@@ -87,6 +97,44 @@ function RTC(enables){
 			lineWidth: false,
 			code: false
 	}
+	
+	//##############################################
+	//
+	// RTCMultiConnection Setting
+	//
+	//##############################################
+	
+	var conn;
+	
+	conn = new RTCMultiConnection();
+	
+	conn.socketURL = '/';
+	
+	// conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
+	
+	// conn.iceServers = [];
+	
+	// conn.iceServers.push(stunOption);
+
+	// conn.iceServers.push(turnOption);
+	
+	// ==========================================================
+	
+	conn.dontCaptureUserMedia = true;
+	
+	conn.maxParticipantsAllowed = 9999;
+	
+	conn.enableFileSharing = !!enables.file;
+	
+	conn.session = {
+			data: !!enables.dataChannel || !!enables.file || !!enables.canvas
+	};
+	
+	conn.fileViewer = false;
+	
+	conn.multiFilePicker = true;
+	
+	conn.shareFileInServer = false;
 	
 	rtc.conn = null;
 	
@@ -128,7 +176,6 @@ function RTC(enables){
 		{label: 'FHD', width: 1920, height: 1080}
 	]
 	
-	
 	if(!!!enables) {
 		enables = {};
 		enables.video = false;
@@ -142,55 +189,13 @@ function RTC(enables){
 		enables.setting = false;
 	}
 
-	if(!!enables.canvas || !!enables.file){
-		enables.dataChannel = true;
-	}
+	enables.dataChannel = !!enables.canvas || !!enables.file || !!enables.dataChannel;
 	
+	importJs(enables);
+
 	rtc.enables = enables;
-	
-	importJs(rtc.enables);
-	
-	
-	//##############################################
-	//
-	// RTCMultiConnection Setting
-	//
-	//##############################################
-	var stunOption = {
-		urls: 'stun:192.168.25.4:3478'
-	}
-	
-	var turnOption = {
-		urls: 'turn:211.44.246.219:3478?transport=tcp',
-		credential: 'test',
-		username: 'test'
-	};
-	
-	var conn;
-	
-	conn = new RTCMultiConnection();
-	
-	conn.socketURL = '/';
-	
-	conn.dontCaptureUserMedia = true;
-	
-	conn.maxParticipantsAllowed = 9999;
-	
-	conn.session = {
-		data: !!enables.dataChannel
-	};
-	
-	conn.enableFileSharing = !!enables.file;
-	
-	conn.fileViewer = false;
-	
-	conn.multiFilePicker = true;
-	
-	conn.shareFileInServer = false;
-	
+
 	rtc.conn = conn;
-	
-	// ==========================================================
 	
 	//##############################################
 	//
@@ -338,15 +343,17 @@ function RTC(enables){
 				}				
 			}
 			
+			// 로컬 스트림 디바이스 변경 셀렉터 등록
+			if(!!rtc.enables.setting){
+				rtc.resolutionSetting(evt.stream);
+			}
+			
 		} else {
 		
 		}
 		
-		if(!!rtc.enables.setting){
-			rtc.resolutionSetting(evt.stream);
-		}
-		
 		rtc.onstream(rtc, evt);
+		
 	};
 	
 	// onDataChannelOpened SUCCESS
@@ -474,16 +481,20 @@ function RTC(enables){
 		
 		if (event.data.message === 'plz-sync-points' && !!rtc.designer) {
 			rtc.designer.sync();
+			
+			// ## 최초 접속자 스트림 권한 denied시 에러 방지
 			if(rtc.remoteStreams.length == 0 && rtc.video){
 				rtc.conn.addStream(rtc.video);
+				rtc.onnoticemessage(event.userid, 'notShareVideo', 'peer is not share video');
 			}
+			
 			rtc.conn.syncFile(event.userid, event.data.syncFileList);
 			rtc.onnoticemessage(event.userid, 'initSync', event.data);
 		}
 		
 		if (event.data.canvas && !!rtc.designer) {
 			rtc.designer.syncData(event.data.data);
-			rtc.onnoticemessage(event.userid, 'sync', event.data);
+			rtc.onnoticemessage(event.userid, 'syncCanvas', event.data);
 		}
 		
 		if (event.data.syncFile){
@@ -515,39 +526,55 @@ RTC.prototype.onBrowserNotSupportError = function(errors){
 		}else if(err === 'recorde'){
 			alert('녹화를 지원하지 않는 브라우저 입니다.');
 		}else if(err === 'dataChannel'){
-			alert('데이터 공유를 지원하지 않는 브라우저 입니다.');
+			alert('데이터전송을 지원하지 않는 브라우저 입니다.');
+		}else if(err === 'video'){
+			alert('비디오를 지원하지 않는 브라우저 입니다.');
 		}
 	});
 }
 
-RTC.prototype.onMediaCaptureError = function(error, isAudio){
-	if(error === 'AbortError'){
-		if(!!isAudio){
+RTC.prototype.mediaCaptureErrorHandler = function(error, type){
+	
+	// @@ log
+	// console.error("에러 : " + error);
+	
+	if(error.name === 'AbortError'){
+		if(type == 'audio'){
 			alert("오디오를 불러오는 중 중단 되었습니다.");
-		}else {
+		}else if(type == 'video'){
 			alert("카메라가 다른 장치에서 이미 사용 중 입니다.");
+		}else if(type == 'screen'){
+			alert("스크린을 가져올 수 없습니다.");
 		}
-	}else if(error === 'NotAllowedError'){
-		alert("카메라에 대한 권한을 해제 후 사용가능 합니다.");
-	}else if(error === 'NotFoundError'){
-		if(!!isAudio){
+	}else if(error.name === 'NotAllowedError'){
+		if(type == 'audio'){
+			alert("오디오에 대한 권한을 해제 후 사용가능 합니다.");
+		}else if(type == 'video'){
+			alert("카메라에 대한 권한을 해제 후 사용가능 합니다.");
+		}else if(type == 'screen'){
+			// alert("스크린에 대한 권한을 해제 후 사용가능 합니다.");
+		}
+	}else if(error.name === 'NotFoundError'){
+		if(type == 'audio'){
 			alert("연결 가능한 오디오가 없습니다.");
-		}else {
+		}else if(type == 'video'){
 			alert("연결 가능한 카메라가 없습니다.");
+		}else if(type == 'screen'){
+			alert('스크린을 찾을 수 없습니다.');
 		}
-	}else if(error === 'NotReadableError'){
+	}else if(error.name === 'NotReadableError'){
 		alert("장치를 불러올 수 없습니다. \n다시 시도해주세요");
-	}else if(error === 'SecurityError'){
-		alert("HTTPS가 아닌 연결 에러");
-	}else if(error === 'NotSupportedError'){
-		alert("지원 불가");
-	}else if(error === 'InvalidAccessError'){
-		alert("인자값 오류");
-	}else if(error === 'TypeError'){ 
+	}else if(error.name === 'SecurityError'){
+		alert("SecurityError : HTTPS가 아닌 연결 에러");
+	}else if(error.name === 'NotSupportedError'){
+		alert("NotSupportedError : 지원 불가");
+	}else if(error.name === 'InvalidAccessError'){
+		alert("InvalidAccessError : 인자값 오류");
+	}else if(error.name === 'TypeError'){ 
 		// alert("모든제약조건이 false 이거나 제약 조건이 비어있음");
-		alert("알수없는 에러");
-	}else if(error === 'ReferenceError'){ 
-		alert("알수없는 에러");
+		alert("TypeError : 알수없는 에러");
+	}else if(error.name === 'ReferenceError'){ 
+		alert("ReferenceError : 알수없는 에러");
 	}else {
 		alert(error);
 	}
@@ -565,16 +592,22 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	
 	if(!!!window.RTCPeerConnection){
 		console.error('NOT SUPPORT BROWSER : RTCPeerConnection Not Found');
-		notSupportCriticalList.push('all');
+		notSupportList.push('video');
+		if(!!enables.video.exact){
+			notSupportCriticalList.push('all');
+		}
 	}
 	
 	if(!!!window.navigator.mediaDevices.getUserMedia){
 		console.error('NOT SUPPORT BROWSER : getUserMedia Not Found');
-		notSupportCriticalList.push('all');
+		notSupportList.push('video');
+		if(!!enables.video.exact){
+			notSupportCriticalList.push('video');
+		}
 	}
 	
 	if(!!!enables.video && !!!enables.peerVideo){
-		console.error('NOT SUPPORT BROWSER : Not Found Video Contain');
+		console.error('NOT SHARING BROWSER : Not Found Video Contain');
 		notSupportList.push('video');
 		// notSupportCriticalList.push('video');
 	}
@@ -606,18 +639,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	
 	this.notSupportList = notSupportList;
 	
-	this.onBrowserNotSupportError(notSupportCriticalList);
-	
 	return notSupportCriticalList;
-}
-
-RTC.prototype.mediaCaptureErrorHandler = function(error, isAudio){
-	
-	// @@ log
-	// console.error("에러 : " + error);
-	
-	this.onMediaCaptureError(error.name, isAudio);
-	
 }
 
 
@@ -649,8 +671,9 @@ RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	var errors = rtc.browserNotSupportErrorHandler();
 	
 	if(errors.length !== 0){
-		alert('접속이 불가능 합니다.');
-		console.error("Not Working List : " + errors);
+		
+		rtc.onBrowserNotSupportError(errors);
+		
 		return ;
 	}
 	
@@ -676,6 +699,7 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 	
 	rtc.getUserMedia(constraints, 'allinput', function(stream){
 		
+		// 최초 카메라 미연결 시 디바이스 변경이벤트는 ( 스트림 추가 )
 		if(stream === 'NotFoundCamera'){
 			navigator.mediaDevices.ondevicechange = function (event){
 				rtc.beforeOpenOrJoin('addStream');
@@ -694,6 +718,13 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 				
 				rtc.deviceSetting(stream);
 				
+				rtc.defResolution.width = stream.getVideoTracks()[0].getSettings().width;
+
+				rtc.defResolution.height = stream.getVideoTracks()[0].getSettings().width / 16 * 9;
+				
+				rtc.resolutionChange(stream, rtc.defResolution.width + 'x' +  rtc.defResolution.height);
+
+				// 최초 카메라 연결 상태일때 디바이스 변경 이벤트는 ( 디바이스 체인지 )
 				navigator.mediaDevices.ondevicechange = function (event){
 					if(!!stream.getAudioTracks()[0]){
 						rtc.deviceChange(stream, stream.getAudioTracks()[0].getSettings().deviceId, 'audioinput');
@@ -906,7 +937,7 @@ RTC.prototype.deviceSetting = function(stream){
 			}
 			
 			stream.getTracks().forEach(function(track){
-				if(device.kind !== 'audiooutput' && device.deviceId === track.getSettings().deviceId){
+				if(device.kind !== 'audiooutput' && (device.deviceId === track.getSettings().deviceId || device.deviceId === track.getConstraints().deviceId)){
 					option.selected = true;
 				}
 			});
@@ -943,29 +974,30 @@ RTC.prototype.resolutionSetting = function(stream){
 	var optimalList = [], isOpt = false;
 	
 	var width = stream.getVideoTracks()[0].getSettings().width;
-	var height = stream.getVideoTracks()[0].getSettings().height;
+//	var height = stream.getVideoTracks()[0].getSettings().height;
+	var height = width / 16 * 9;
 	
-	for ( var index in rtc.resolutions ){
-		
-		var resolution = rtc.resolutions[index];
-		
-		optimalList.push(resolution);
-		
-		if(resolution.width === width && resolution.height === height){
-			isOpt = true;
-			break;
-		}
-	}
+//	for ( var index in rtc.resolutions ){
+//		
+//		var resolution = rtc.resolutions[index];
+//		
+//		optimalList.push(resolution);
+//		
+//		if(resolution.width === width && resolution.height === height){
+//			isOpt = true;
+//			break;
+//		}
+//	}
 	
-	if(!isOpt){
+//	if(!isOpt){
 		optimalList = [];
 		
 		optimalList.push({label: 'high', width: width, height: height});
 		
-		optimalList.push({label: 'midle', width: Math.floor(width/3*2), height: Math.floor(height/3*2)});
+		optimalList.push({label: 'midle', width: Math.floor(width/10*5), height: Math.floor(height/10*5)});
 		
-		optimalList.push({label: 'low', width: Math.floor(width/3), height: Math.floor(height/3)});
-	}
+		optimalList.push({label: 'low', width: Math.floor(width/10), height: Math.floor(height/10)});
+//	}
 	
 	var elements = {}, values = [], select, defaultOp;
 	
@@ -974,6 +1006,8 @@ RTC.prototype.resolutionSetting = function(stream){
 	defaultOp = document.createElement('option');
 	
 	defaultOp.text = '해상도 선택';
+	
+	defaultOp.value = '0';
 	
 	select = document.createElement('select');
 	
@@ -995,8 +1029,8 @@ RTC.prototype.resolutionSetting = function(stream){
 		
 		select.appendChild(option);
 		
-		if(width === opt.width && height === opt.height){
-			option.selected = true;	
+		if(width === opt.width){
+			option.selected = true;
 		}
 		
 	}
@@ -1091,7 +1125,7 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 			
 		}).catch(function(error){
 			
-			rtc.mediaCaptureErrorHandler(error, true);
+			rtc.mediaCaptureErrorHandler(error, 'audio');
 			
 		});
 		
@@ -1113,7 +1147,7 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 					
 				}).catch(function(error){
 					
-					rtc.mediaCaptureErrorHandler(error, true);
+					rtc.mediaCaptureErrorHandler(error, 'audio');
 					
 					callback(mediaStream);
 					
@@ -1125,7 +1159,7 @@ RTC.prototype.getUserMedia = function(constraints, kind, callback){
 			
 		}).catch(function(error){
 			
-			rtc.mediaCaptureErrorHandler(error, false);
+			rtc.mediaCaptureErrorHandler(error, 'video');
 			
 			callback('NotFoundCamera');
 			
@@ -1144,11 +1178,15 @@ RTC.prototype.getDisplayMedia = function(callback){
 			
 		}).catch(function(error){
 			
-			rtc.mediaCaptureErrorHandler(error, false);
+			rtc.mediaCaptureErrorHandler(error, 'screen');
 			
 		});
 		
 	}else if(navigator.userAgent.indexOf('Chrome') !== -1){
+		
+		// @@ screen
+		alert('스크린 공유 미지원 브라우저를 위한 확장프로그램 준비중입니다. \n브라우저 버전 업데이트 혹은 다른 브라우저를 이용해주세요');
+		return;
 		
 		getChromeExtensionStatus('hgpahehaffcbhjfccbhmdfehkokciibh', function(status) {
 			
@@ -1173,7 +1211,7 @@ RTC.prototype.getDisplayMedia = function(callback){
 						}).then(function(stream) {
 							callback(stream);
 						}).catch(function(error){
-							rtc.mediaCaptureErrorHandler(error, false);
+							rtc.mediaCaptureErrorHandler(error, 'screen');
 						});
 					} else {
 						navigator.mediaDevices.getUserMedia({
@@ -1181,7 +1219,7 @@ RTC.prototype.getDisplayMedia = function(callback){
 						}).then(function(stream) {
 							callback(stream);
 						}).catch(function(error){
-							rtc.mediaCaptureErrorHandler(error, false);
+							rtc.mediaCaptureErrorHandler(error, 'screen');
 						});
 					}
 				}, true);
@@ -1228,7 +1266,7 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 			element.setSinkId(deviceId).then(function(){
 				rtc.deviceSetting(stream);
 			}).catch(function(error){
-				rtc.mediaCaptureErrorHandler(error, true);
+				rtc.mediaCaptureErrorHandler(error, 'audio');
 			});
 			
 		}
@@ -1269,9 +1307,9 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 		// param : old(stream || track), new(stream || track), remoteid, isVideo
 		rtc.conn.replaceTrack(oTrack, nTrack, null, isVideo);
 		
-		stream.addTrack(nTrack);
-		
 		stream.removeTrack(oTrack);
+
+		stream.addTrack(nTrack);
 		
 		stream.play();
 
@@ -1287,6 +1325,21 @@ RTC.prototype.deviceChange = function(stream, deviceId, kind){
 RTC.prototype.resolutionChange = function(stream, value){
 	var rtc = this;
 	
+	// default 값 선택시 이전 값으로 되돌리기
+	if(value == 0){
+		for(var i=0; i<rtc.resolutionSelect[stream.streamid].elements.select.options.length; i++){
+			if(rtc.resolutionSelect[stream.streamid].elements.select.options[i].value.split('x')[0] == 
+					stream.getVideoTracks()[0].getSettings().width){
+				rtc.resolutionSelect[stream.streamid].elements.select.options[i].selected = true;
+				return;
+			}
+		}
+		
+		// ## Fire Fox Min Width Not Over Setting Error
+		rtc.resolutionSelect[stream.streamid].elements.select.options[3].selected = true;
+		return;
+	}
+	
 	value = value.split('x');
 	
 	var track = stream.getVideoTracks()[0];
@@ -1294,6 +1347,9 @@ RTC.prototype.resolutionChange = function(stream, value){
 	track.applyConstraints({
 		width : value[0],
 		height : value[1]
+	}).then(function(){
+//		rtc.defResolution.width = track.getSettings().width;
+//		rtc.defResolution.height = track.getSettings().height;
 	});
 }
 
