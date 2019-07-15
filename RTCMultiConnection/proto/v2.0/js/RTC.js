@@ -130,11 +130,17 @@ function RTC(enables){
 			data: !!enables.dataChannel || !!enables.file || !!enables.canvas
 	};
 	
+	// 파일 뷰어 여부
 	conn.fileViewer = false;
 	
+	// 다중 파일 업로드 여부
 	conn.multiFilePicker = true;
 	
-	conn.shareFileInServer = false;
+	// 파일 목록 동기화 여부
+	conn.shareFileSyncWithPeer = true;
+
+	// 파일 업로드 위치 ( 서버, 사용자 )
+	conn.shareFileInServer = true;
 	
 	rtc.conn = null;
 	
@@ -362,7 +368,7 @@ function RTC(enables){
 		if ( !!rtc.designer && rtc.enables.dataChannel && rtc.notSupportList.indexOf('dataChannel') === -1) {
 			setTimeout(function() {
 				
-				rtc.conn.send({message : 'plz-sync-points', syncFileList : rtc.conn.syncFileList});
+				rtc.conn.send({message : 'plz-sync-points', syncFileList : rtc.conn.shareFileSyncWithPeer ? rtc.conn.syncFileList : []});
 				
 			}, 1000);
 		}
@@ -517,22 +523,6 @@ function RTC(enables){
 // Error Handler
 //
 //##############################################
-RTC.prototype.onBrowserNotSupportError = function(errors){
-	errors.forEach(function(err){
-		if(err === 'all'){
-			alert('다른브라우저를 이용해주세요');
-		}else if(err === 'screen'){
-			alert('스크린 영상을 지원하지 않는 브라우저입니다.');
-		}else if(err === 'recorde'){
-			alert('녹화를 지원하지 않는 브라우저 입니다.');
-		}else if(err === 'dataChannel'){
-			alert('데이터전송을 지원하지 않는 브라우저 입니다.');
-		}else if(err === 'video'){
-			alert('비디오를 지원하지 않는 브라우저 입니다.');
-		}
-	});
-}
-
 RTC.prototype.mediaCaptureErrorHandler = function(error, type){
 	
 	// @@ log
@@ -580,6 +570,22 @@ RTC.prototype.mediaCaptureErrorHandler = function(error, type){
 	}
 }
 
+RTC.prototype.onBrowserNotSupportError = function(errors){
+	errors.forEach(function(err){
+		if(err === 'all'){
+			alert('다른브라우저를 이용해주세요');
+		}else if(err === 'screen'){
+			alert('스크린 영상을 지원하지 않는 브라우저입니다.');
+		}else if(err === 'recorde'){
+			alert('녹화를 지원하지 않는 브라우저 입니다.');
+		}else if(err === 'dataChannel'){
+			alert('데이터전송을 지원하지 않는 브라우저 입니다.');
+		}else if(err === 'video'){
+			alert('비디오를 지원하지 않는 브라우저 입니다.');
+		}
+	});
+}
+
 RTC.prototype.browserNotSupportErrorHandler = function (){
 	
 	var enables = this.enables;
@@ -592,7 +598,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	
 	if(!!!window.RTCPeerConnection){
 		console.error('NOT SUPPORT BROWSER : RTCPeerConnection Not Found');
-		notSupportList.push('video');
+		notSupportList.push('rtcPeerConnection');
 		if(!!enables.video.exact){
 			notSupportCriticalList.push('all');
 		}
@@ -604,12 +610,6 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 		if(!!enables.video.exact){
 			notSupportCriticalList.push('video');
 		}
-	}
-	
-	if(!!!enables.video && !!!enables.peerVideo){
-		console.error('NOT SHARING BROWSER : Not Found Video Contain');
-		notSupportList.push('video');
-		// notSupportCriticalList.push('video');
 	}
 	
 	if(!!enables.screen && !!!window.navigator.mediaDevices.getDisplayMedia && window.navigator.userAgent.indexOf('Chrome') === -1 && window.navigator.userAgent.indexOf('Edge') !== -1){
@@ -642,6 +642,20 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 	return notSupportCriticalList;
 }
 
+RTC.prototype.syntaxErrorHandler = function(){
+
+	var enables = this.enables;
+	
+	// @@ 에러 핸들러 정의 ( 비디오, 스크린, 캔버스, 파일공유, 세팅 )
+	if(!!!enables.video && !!!enables.peerVideo){
+		console.error('NOT FOUND CONTAINER : Not Found Video Contain');
+	}
+	
+	if(rtc.conn.userid === rtc.conn.sessionid){
+		console.error('CAN NOT BE SAME : NAME AND ID');
+	}
+}
+
 
 //##############################################
 //
@@ -651,34 +665,18 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	
 	var rtc = this;
-	
+
 	rtc.permission = permission;
 	
 	if(!!!permission){
 		rtc.permission = 'user';
 	}
 	
-	if(userid === roomid){
-		alert('user != roomid');
-		return;
-	}
-	
 	rtc.conn.userid = userid || rtc.conn.userid;
 	
 	rtc.conn.sessionid = roomid;
 	
-	
-	var errors = rtc.browserNotSupportErrorHandler();
-	
-	if(errors.length !== 0){
-		
-		rtc.onBrowserNotSupportError(errors);
-		
-		return ;
-	}
-	
-	// RTCMultiConnection API 이벤트 등록
-	rtc.RMCEventHandler();
+	rtc.syntaxErrorHandler();
 	
 	rtc.beforeOpenOrJoin(function(data){
 		
@@ -692,6 +690,23 @@ RTC.prototype.openOrJoin = function(userid, roomid, permission){
 RTC.prototype.beforeOpenOrJoin = function(callback){
 	
 	var rtc = this;
+	
+	// 브라우저 기능 지원 에러 핸들러
+	var errors = rtc.browserNotSupportErrorHandler();
+	
+	if(errors.length !== 0){
+		
+		rtc.onBrowserNotSupportError(errors);
+		
+		errors.forEach(function(error){
+			rtc.onnoticemessage('', 'NotSupportBrowser', error);
+		});
+		
+		return ;
+	}
+
+	// 이벤트 등록
+	rtc.RMCEventHandler();
 
 	var constraints = {
 		video: rtc.defResolution
@@ -755,7 +770,6 @@ RTC.prototype.afterOpenOrJoin = function(stream){
 	if(!!rtc.enables.canvas && rtc.notSupportList.indexOf('dataChannel') === -1){
 		rtc.canvasShareSetting();
 	}
-
 }
 
 
@@ -1432,29 +1446,49 @@ RTC.prototype.shareFile = function(){
 	
 	var rtc = this;
 	
+	function FileInServerConvert(files){
+		var fileList = [];
+		
+		files.forEach(function(file, index){
+			var f = {};
+			
+	        for (var item in file) {
+	            try {
+	                f[item] = file[item];
+	            } catch (e) {}
+	        }
+			
+			f.data = file;
+			f.userid = rtc.conn.userid;
+			f.uuid = (Math.random() * 100).toString().replace(/\./g, '');
+			
+			fileList.push(f);
+		});
+		
+		return fileList;
+	}
+	
 	var fileSelector = new FileSelector();
 	
-	if(rtc.conn.multiFilePicker){
-		fileSelector.selectMultipleFiles(function(files) {
-			if(rtc.conn.shareFileInServer){
-				// @@ multi file upload in server 
-				
-			}else {
-				files.forEach(function(file){
-					rtc.conn.send(file);
-				});
-			}
-		});
-	}else {
-		fileSelector.selectSingleFile(function(file) {
-			if(rtc.conn.shareFileInServer){
-				// @@ single file upload in server
-				
-			}else {
+	if (rtc.conn.multiFilePicker) fileSelector.filePicker = fileSelector.selectMultipleFiles;
+	else fileSelector.filePicker = fileSelector.selectSingleFile;
+
+	fileSelector.filePicker(function(files) {
+		
+		if(!files.forEach){
+			var file = files;
+			files = [file];
+		}
+		
+		if(rtc.conn.shareFileInServer){
+			// @@ multi file upload in server
+			rtc.conn.socket.emit('fileUpload', FileInServerConvert(files));
+		}else {
+			files.forEach(function(file){
 				rtc.conn.send(file);
-			}
-		});
-	}
+			});
+		}
+	});
 }
 
 //스트림 중지 & 스타트 (원격 & 로컬[ 사용자 조작, 권한 조작(공유 중지) 이벤트 ])
