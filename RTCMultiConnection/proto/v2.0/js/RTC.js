@@ -36,7 +36,7 @@ function RTC(enables){
 		[
 			(!!enables.record || !!enables.monitoring) ? path + '/node_modules/msr/MediaStreamRecorder.js' : ''
 			,!!enables.file ? path + '/node_modules/fbr/FileBufferReader.js' : ''
-			,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : ''
+			// ,!!enables.canvas ? path + '/node_modules/canvas-designer/dev/webrtc-handler.js' : '' // when 'rtcmulticonnection' not import
 			,!!enables.canvas ? path + '/node_modules/canvas-designer/canvas-designer-widget.js' : ''
 			,!!enables.screen ? path + '/node_modules/webrtc-screen-capturing/Screen-Capturing.js' : ''
 		].forEach(function(src) {
@@ -722,7 +722,7 @@ RTC.prototype.onBrowserNotSupportError = function(errors, exact){
 	if(exact){
 		msg += '} 기능을 지원하지 않습니다. 다른브라우저를 이용해주세요.';
 	}else {
-		msg += '} 기능을 지원하지 않으므로 이용에 제한이 있습니다.';
+		msg += '} 기능을 지원하지 않으므로 이용에 제한이 있을 수 있습니다.';
 	}
 	
 	alert(msg);
@@ -828,7 +828,7 @@ RTC.prototype.beforeOpenOrJoin = function(callback){
 	if(errors.length !== 0){
 		rtc.onBrowserNotSupportError(errors, true);
 		return;
-	} else {
+	} else if(rtc.notSupportList.length !== 0){
 		rtc.onBrowserNotSupportError(rtc.notSupportList, false);
 	}
 	

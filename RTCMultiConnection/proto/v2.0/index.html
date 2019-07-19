@@ -100,24 +100,24 @@
 			
 			
 			// ## exact == denied ? error : success
-			var enables = {
-				video :   $('#webrtc-video'),
-				screen :  $('#webrtc-screen'),
-				file :    $('#webrtc-file'),
-				canvas :  $('#webrtc-canvas'),
-				setting : $('#webrtc-setting'),
-				recorde : true
-			};
-			
-	 		<!-- var enables = { -->
-	 			<!-- video :     { exact : $('#webrtc-video') }, -->
-	 			<!-- screen :    { exact : $('#webrtc-screen') }, -->
-	 			<!-- file : 	    { exact : $('#webrtc-file') }, -->
-	 			<!-- canvas :    { exact : $('#webrtc-canvas') }, -->
-	 			<!-- setting :   { exact : $('#webrtc-setting') }, -->
-	 			<!-- recorde :   { exact : true }, -->
-	  		<!-- monitoring: true -->
+			<!-- var enables = { -->
+	 			<!-- video   : $('#webrtc-video'), -->
+	 			<!-- screen  : $('#webrtc-screen'), -->
+	 			<!-- file    : $('#webrtc-file'), -->
+	 			<!-- canvas  : $('#webrtc-canvas'), -->
+	 			<!-- setting : $('#webrtc-setting'), -->
+	 			<!-- recorde : true -->
 	 		<!-- }; -->
+			
+			var enables = {
+				video      : { exact : $('#webrtc-video')   },
+				screen     : { exact : $('#webrtc-screen')  },
+				file       : { exact : $('#webrtc-file')    },
+				canvas     : { exact : $('#webrtc-canvas')  },
+				setting    : { exact : $('#webrtc-setting') },
+				recorde    : { exact : true                 },
+				monitoring : true
+			};
 			
 			rtc = new RTC(enables);
 			
