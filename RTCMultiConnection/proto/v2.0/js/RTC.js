@@ -222,7 +222,9 @@ function RTC(enables){
 		enables.peerVideo = enables.peerVideo[0];
 	}
 	
-	if(enables.setting && enables.setting instanceof jQuery){
+	if(enables.setting && enables.setting.exact && enables.setting.exact instanceof jQuery){
+		enables.setting = enables.setting.exact[0];
+	}else if (enables.setting && enables.setting instanceof jQuery){
 		enables.setting = enables.setting[0];
 	}
 	// ################################################################
@@ -665,7 +667,7 @@ RTC.prototype.browserNotSupportErrorHandler = function (){
 		}
 	}
 	
-	if(!!enables.screen && (!!!window.navigator.mediaDevices.getDisplayMedia || !!!window.navigator.getDisplayMedia) && window.navigator.userAgent.indexOf('Chrome') === -1){
+	if(!!enables.screen && (!!!window.navigator.mediaDevices.getDisplayMedia && !!!window.navigator.getDisplayMedia) && window.navigator.userAgent.indexOf('Chrome') === -1){
 		console.error('NOT SUPPORT BROWSER : getDisplayMedia Not Found');
 		notSupportList.push('screen');
 		if(!!enables.screen.exact){
