@@ -57,13 +57,13 @@ function RTC(enables){
 	var rtc = this;
 	
 	var stunOption = {
-		urls: 'stun:192.168.25.4:3478'
+		urls: 'stun:dltlgus313.iptime.org:3478'
 	}
 	
 	var turnOption = {
-		urls: 'turn:211.44.246.219:3478?transport=tcp',
-		credential: 'test',
-		username: 'test'
+		urls: 'turn:dltlgus313.iptime.org:3478?transport=udp',
+		credential: 'root',
+		username: 'root'
 	};
 	
 	rtc.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
@@ -112,11 +112,11 @@ function RTC(enables){
 	
 	// conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
 	
-	// conn.iceServers = [];
+	conn.iceServers = [];
 	
-	// conn.iceServers.push(stunOption);
+	conn.iceServers.push(stunOption);
 
-	// conn.iceServers.push(turnOption);
+	conn.iceServers.push(turnOption);
 	
 	// ==========================================================
 	
