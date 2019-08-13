@@ -569,7 +569,7 @@ function RTC(enables){
 			return;
 		}
 		
-		if(HTMLDivElement === rtc.enables.video.exact || HTMLDivElement === rtc.enables.video){
+		if(rtc.enables.video.exact instanceof HTMLDivElement || rtc.enables.video instanceof HTMLDivElement){
 			event.mediaElement.parentNode.removeChild(event.mediaElement);
 		}
 		
