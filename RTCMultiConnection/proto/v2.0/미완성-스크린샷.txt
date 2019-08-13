@@ -1,0 +1,16 @@
+var photo = $('#photo');
+setInterval(function(){
+
+	var context = canvas.getContext('2d');
+
+	canvas.width = 500;
+
+	canvas.height = 500;
+
+	context.drawImage(video, 0, 0, 500, 500);
+    
+	var data = canvas.toDataURL('image/png');
+
+	photo.setAttribute('src', data);
+
+}, 80);
