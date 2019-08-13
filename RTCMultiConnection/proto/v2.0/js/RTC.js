@@ -57,13 +57,13 @@ function RTC(enables){
 	var rtc = this;
 	
 	var stunOption = {
-		urls: 'stun:192.168.25.4:3478'
+		urls: 'stun:dltlgus313.iptime.org:3478'
 	}
 	
 	var turnOption = {
-		urls: 'turn:211.44.246.219:3478?transport=tcp',
-		credential: 'test',
-		username: 'test'
+		urls: 'turn:dltlgus313.iptime.org:3478?transport=udp',
+		credential: 'root',
+		username: 'root'
 	};
 	
 	rtc.widgetHtmlURL = path + '/node_modules/canvas-designer/widget.html';
@@ -112,11 +112,11 @@ function RTC(enables){
 	
 	// conn.socketOptions = { 'path':'/txt/socket/socket.io', "transports": ["websocket"] };
 	
-	// conn.iceServers = [];
+	conn.iceServers = [];
 	
-	// conn.iceServers.push(stunOption);
+	conn.iceServers.push(stunOption);
 
-	// conn.iceServers.push(turnOption);
+	conn.iceServers.push(turnOption);
 	
 	// ==========================================================
 	
@@ -126,7 +126,7 @@ function RTC(enables){
 	
 	conn.shareFileSyncWithPeer = true; // 파일 목록 동기화 여부 ( 최초 접속자 한해서 )
 	
-	conn.shareFileInServer = true; // 파일 업로드 위치 ( 서버, 사용자 )
+	conn.shareFileInServer = false; // 파일 업로드 위치 ( 서버, 사용자 )
 	
 	conn.dontCaptureUserMedia = true;
 	
@@ -218,7 +218,9 @@ function RTC(enables){
 		enables.file = enables.file[0];
 	}
 
-	if(enables.peerVideo && enables.peerVideo instanceof jQuery){
+	if(enables.peerVideo && enables.peerVideo.exact && enables.peerVideo.exact instanceof jQuery){
+		enables.peerVideo.exact = enables.peerVideo.exact[0];
+	}else if(enables.peerVideo && enables.peerVideo instanceof jQuery){
 		enables.peerVideo = enables.peerVideo[0];
 	}
 	
@@ -396,6 +398,60 @@ function RTC(enables){
 	
 	//##############################################
 	//
+	// onnetworkerror
+	//
+	// 네트워크 재 연결
+	//
+	//##############################################
+	this.onnetworkerror = function(){
+
+		rtc.remoteStreams.forEach(function(stream){
+			
+			stream.stop();
+			
+			rtc.onstreamended({stream:stream});
+			
+			delete rtc.remoteStreams[stream];
+		});
+		
+		if(rtc.video){
+			
+			rtc.video.stop();
+			
+			rtc.onstreamended({stream:rtc.video});
+			
+			rtc.video = null;
+		}
+		
+		if(rtc.screen){
+			
+			rtc.screen.stop();
+			
+			rtc.onstreamended({stream:rtc.screen});
+		
+			rtc.screen = null;
+		}
+		
+		rtc.conn.getAllParticipants().forEach(function(id){
+			delete rtc.conn.peers[id]; 
+		})
+		
+		delete rtc.conn.attachStreams
+		
+		var reconnectionInterval = setInterval(function(){
+			if(rtc.conn.socket.connected){
+				
+				rtc.openOrJoin(rtc.userid, rtc.roomid, rtc.permission);
+
+				clearInterval(reconnectionInterval);
+				
+			}
+		}, 3000);
+		
+	}
+	
+	//##############################################
+	//
 	// onDataChannelOpened SUCCESS
 	//
 	// 접속중인 다른 사용자와 최초 연결 시
@@ -513,7 +569,10 @@ function RTC(enables){
 			return;
 		}
 		
-		event.mediaElement.parentNode.removeChild(event.mediaElement);
+		if(HTMLDivElement === rtc.enables.video.exact || HTMLDivElement === rtc.enables.video){
+			event.mediaElement.parentNode.removeChild(event.mediaElement);
+		}
+		
 	};
 	
 	this.onRoomFull = function(error) {
@@ -741,35 +800,35 @@ RTC.prototype.syntaxErrorHandler = function(){
 
 	var enables = this.enables;
 	
-	var video = enables.video.exact || enables.video;
+	var video = enables.video ? enables.video.exact || enables.video : '';
 	
 	if( !!!video || (!!video && !(video instanceof HTMLDivElement) && !(video instanceof HTMLVideoElement)) ){
 		console.error('NOT FOUND CONTAINER : You Need Local Stream Container');
 		return;
 	}
 	
-	var screen = enables.screen.exact || enables.screen;
+	var screen = enables.screen ? enables.screen.exact || enables.screen : '';
 
 	if( !!screen && !(video instanceof HTMLDivElement) && (!(screen instanceof HTMLDivElement) && !(screen instanceof HTMLVideoElement)) ){
 		console.error('NOT FOUND CONTAINER : You Need Screen Stream Container');
 		return;
 	}
 	
-	var canvas = enables.canvas.exact || enables.canvas;
+	var canvas = enables.canvas ? enables.canvas.exact || enables.canvas : '';
 
 	if( !!canvas && !(canvas instanceof HTMLDivElement) ){
 		console.error('NOT FOUND CONTAINER : You Need Canvas-Designer Container');
 		return;
 	}
 	
-	var file = enables.file.exact || enables.file;
+	var file = enables.file ? enables.file.exact || enables.file : '';
 	
 	if( !!file && !(file instanceof HTMLDivElement) ){
 		console.error('NOT FOUND CONTAINER : You Need File Share Container');
 		return;
 	}
 	
-	var peerVideo = enables.peerVideo;
+	var peerVideo = enables.peerVideo ? enables.peerVideo.exact || enables.peerVideo : '';
 	
 	if( (!!!peerVideo && !(video instanceof HTMLDivElement) ) || (!!peerVideo && !(peerVideo instanceof HTMLDivElement) && !(peerVideo instanceof HTMLVideoElement)) ){
 		console.error('NOT FOUND CONTAINER : You Need Remote Stream Container');
@@ -800,6 +859,10 @@ RTC.prototype.openOrJoin = function(userid, roomid, permission){
 	var rtc = this;
 
 	rtc.permission = permission;
+	
+	rtc.roomid = roomid;
+	
+	rtc.roomid = roomid;
 	
 	if(!!!permission){
 		rtc.permission = 'user';
@@ -928,6 +991,8 @@ RTC.prototype.RMCEventHandler = function(){
 	rtc.conn.onleave = rtc.onleave;
 	
 	rtc.conn.onstreamended = rtc.onstreamended;
+	
+	rtc.conn.onnetworkerror = rtc.onnetworkerror;
 	
 	rtc.conn.onUserIdAlreadyTaken = rtc.onUserIdAlreadyTaken;
 	
@@ -1507,6 +1572,7 @@ RTC.prototype.resolutionChange = function(stream, value){
 	});
 }
 
+
 //##############################################
 //
 // External Event 
@@ -1758,7 +1824,7 @@ RTC.prototype.onstream = function(rtc, event){
 	var contain;
 
 	contain = !!event.stream.isScreen ? rtc.enables.screen.exact || rtc.enables.screen : event.type === 'remote' ? 
-					rtc.enables.peerVideo || rtc.enables.video.exact || rtc.enables.video : rtc.enables.video.exact || rtc.enables.video;
+					rtc.enables.peerVideo ? rtc.enables.peerVideo.exact : rtc.enables.peerVideo || rtc.enables.video.exact || rtc.enables.video : rtc.enables.video.exact || rtc.enables.video;
 	
 	if(contain instanceof HTMLDivElement){
 		
